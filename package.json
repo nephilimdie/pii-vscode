@@ -1,0 +1,79 @@
+{
+  "name": "pii-protect",
+  "displayName": "PII Protect",
+  "description": "Detect and anonymize PII in your code files",
+  "version": "0.1.0",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Other",
+    "Linters"
+  ],
+  "activationEvents": [
+    "onLanguage:sql",
+    "onLanguage:plaintext",
+    "onLanguage:json",
+    "onLanguage:log"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "piiProtect.detectInFile",
+        "title": "PII Protect: Detect PII in File"
+      },
+      {
+        "command": "piiProtect.anonymizeSelection",
+        "title": "PII Protect: Anonymize Selection"
+      },
+      {
+        "command": "piiProtect.anonymizeFile",
+        "title": "PII Protect: Anonymize Entire File"
+      },
+      {
+        "command": "piiProtect.clearHighlights",
+        "title": "PII Protect: Clear Highlights"
+      }
+    ],
+    "configuration": {
+      "title": "PII Protect",
+      "properties": {
+        "piiProtect.engineUrl": {
+          "type": "string",
+          "default": "http://localhost:8000",
+          "description": "PII Protect engine URL"
+        },
+        "piiProtect.apiKey": {
+          "type": "string",
+          "default": "",
+          "description": "API key for authentication"
+        },
+        "piiProtect.autoDetect": {
+          "type": "boolean",
+          "default": false,
+          "description": "Auto-detect PII on file open/save"
+        },
+        "piiProtect.highlightColor": {
+          "type": "string",
+          "default": "rgba(255,99,71,0.25)",
+          "description": "Highlight color for detected PII"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/vscode": "^1.80.0",
+    "typescript": "^5.0",
+    "vitest": "^4.1.9"
+  },
+  "icon": "images/icon.png"
+}
