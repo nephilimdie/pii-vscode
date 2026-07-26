@@ -34,6 +34,10 @@
       {
         "command": "piiProtect.clearHighlights",
         "title": "PII Protect: Clear Highlights"
+      },
+      {
+        "command": "piiProtect.setApiKey",
+        "title": "PII Protect: Set API Key"
       }
     ],
     "configuration": {
@@ -47,7 +51,8 @@
         "piiProtect.apiKey": {
           "type": "string",
           "default": "",
-          "description": "API key for authentication"
+          "markdownDeprecationMessage": "**Deprecated**: settings are stored in plaintext and travel through Settings Sync. Run `PII Protect: Set API Key` instead — the key goes into the OS keychain. Any value left here is migrated automatically on the next activation.",
+          "description": "Deprecated. Use the 'PII Protect: Set API Key' command."
         },
         "piiProtect.autoDetect": {
           "type": "boolean",

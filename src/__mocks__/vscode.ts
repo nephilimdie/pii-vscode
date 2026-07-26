@@ -15,8 +15,34 @@ export const workspace = {
   getConfiguration: (_section?: string) => ({
     get: <T>(key: string, fallback: T): T =>
       key in _config ? (_config[key] as T) : fallback,
+    update: async (key: string, value: unknown, _target?: number): Promise<void> => {
+      if (value === undefined) {
+        delete _config[key];
+      } else {
+        _config[key] = value;
+      }
+    },
   }),
 };
+
+export const ConfigurationTarget = { Global: 1, Workspace: 2, WorkspaceFolder: 3 } as const;
+
+/** In-memory stand-in for vscode.SecretStorage. */
+export class FakeSecretStorage {
+  private store_ = new Map<string, string>();
+
+  async get(key: string): Promise<string | undefined> {
+    return this.store_.get(key);
+  }
+
+  async store(key: string, value: string): Promise<void> {
+    this.store_.set(key, value);
+  }
+
+  async delete(key: string): Promise<void> {
+    this.store_.delete(key);
+  }
+}
 
 export const window = {
   activeTextEditor: null as null,

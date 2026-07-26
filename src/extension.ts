@@ -3,12 +3,21 @@ import { PiiDetector } from './detector';
 import { PiiHighlighter } from './highlighter';
 import { registerCommands } from './commands';
 import { PiiStatusBar } from './statusbar';
-import { getConfig } from './config';
+import { getConfig, migrateApiKeyOutOfSettings, promptForApiKey } from './config';
 
 export function activate(context: vscode.ExtensionContext): void {
-  const detector = new PiiDetector();
+  const detector = new PiiDetector(context.secrets);
   const highlighter = new PiiHighlighter();
   const statusBar = new PiiStatusBar();
+
+  // Lift any key left in settings.json into the OS keychain.
+  void migrateApiKeyOutOfSettings(context.secrets);
+
+  const setApiKey = vscode.commands.registerCommand('piiProtect.setApiKey', async () => {
+    if (await promptForApiKey(context.secrets)) {
+      void vscode.window.showInformationMessage('PII Protect: API key saved to the OS keychain.');
+    }
+  });
 
   // Register all commands
   registerCommands(context, detector, highlighter, statusBar);
@@ -53,7 +62,7 @@ export function activate(context: vscode.ExtensionContext): void {
     statusBar.setIdle();
   });
 
-  context.subscriptions.push(onSave, onOpen, onEditorChange, statusBar, highlighter);
+  context.subscriptions.push(setApiKey, onSave, onOpen, onEditorChange, statusBar, highlighter);
 }
 
 export function deactivate(): void {

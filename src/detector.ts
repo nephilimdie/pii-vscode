@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { getApiKey } from './config';
 
 export interface PiiMatch {
   type: string;
@@ -25,11 +26,18 @@ interface EngineAnonymizeResponse {
 }
 
 export class PiiDetector {
-  private getConfig(): { engineUrl: string; apiKey: string } {
+  /**
+   * `secrets` is the extension's SecretStorage. It is optional so the class stays
+   * constructible in tests, but in the real extension it is always supplied —
+   * without it the key can only come from the deprecated settings entry.
+   */
+  constructor(private readonly secrets?: vscode.SecretStorage) {}
+
+  private async getConfig(): Promise<{ engineUrl: string; apiKey: string }> {
     const cfg = vscode.workspace.getConfiguration('piiProtect');
     return {
       engineUrl: cfg.get<string>('engineUrl', 'http://localhost:8000'),
-      apiKey: cfg.get<string>('apiKey', ''),
+      apiKey: await getApiKey(this.secrets),
     };
   }
 
@@ -59,7 +67,7 @@ export class PiiDetector {
   }
 
   async detect(text: string): Promise<PiiMatch[]> {
-    const { engineUrl, apiKey } = this.getConfig();
+    const { engineUrl, apiKey } = await this.getConfig();
 
     let response: Response;
     try {
@@ -94,7 +102,7 @@ export class PiiDetector {
   }
 
   async anonymize(text: string): Promise<string> {
-    const { engineUrl, apiKey } = this.getConfig();
+    const { engineUrl, apiKey } = await this.getConfig();
 
     let response: Response;
     try {
