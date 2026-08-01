@@ -1,16 +1,23 @@
 {
   "name": "pii-protect",
-  "displayName": "PII Protect",
-  "description": "Detect and anonymize PII in your code files",
-  "version": "0.1.0",
+  "displayName": "Pseudora",
+  "publisher": "pseudora",
+  "description": "Detect and anonymize personal data and connect Pseudora MCP to VS Code",
+  "version": "0.2.0",
+  "license": "SEE LICENSE IN LICENSE",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nephilimdie/pii-vscode.git"
+  },
   "engines": {
-    "vscode": "^1.80.0"
+    "vscode": "^1.125.0"
   },
   "categories": [
     "Other",
     "Linters"
   ],
   "activationEvents": [
+    "onStartupFinished",
     "onLanguage:sql",
     "onLanguage:plaintext",
     "onLanguage:json",
@@ -38,6 +45,24 @@
       {
         "command": "piiProtect.setApiKey",
         "title": "PII Protect: Set API Key"
+      },
+      {
+        "command": "piiProtect.connect",
+        "title": "Pseudora: Connect Account"
+      },
+      {
+        "command": "piiProtect.selectTeam",
+        "title": "Pseudora: Select Team"
+      },
+      {
+        "command": "piiProtect.disconnect",
+        "title": "Pseudora: Disconnect Account"
+      }
+    ],
+    "mcpServerDefinitionProviders": [
+      {
+        "id": "pseudora.mcp",
+        "label": "Pseudora MCP"
       }
     ],
     "configuration": {
@@ -45,8 +70,13 @@
       "properties": {
         "piiProtect.engineUrl": {
           "type": "string",
-          "default": "http://localhost:8000",
-          "description": "PII Protect engine URL"
+          "default": "https://pseudora.cloud",
+          "description": "Pseudora Cloud API URL"
+        },
+        "piiProtect.mcpUrl": {
+          "type": "string",
+          "default": "https://mcp.pseudora.cloud/mcp",
+          "description": "Pseudora remote MCP endpoint"
         },
         "piiProtect.apiKey": {
           "type": "string",

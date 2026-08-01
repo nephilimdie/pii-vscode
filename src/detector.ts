@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { getApiKey } from './config';
+import { PseudoraSessionProvider } from './oauth';
 
 export interface PiiMatch {
   type: string;
@@ -13,11 +14,13 @@ export interface PiiMatch {
 
 interface EngineDetectResponse {
   entities: Array<{
-    entity_type: string;
-    text: string;
+    entity_type?: string;
+    type?: string;
+    text?: string;
     start: number;
     end: number;
-    score: number;
+    score?: number;
+    confidence?: number;
   }>;
 }
 
@@ -31,22 +34,38 @@ export class PiiDetector {
    * constructible in tests, but in the real extension it is always supplied —
    * without it the key can only come from the deprecated settings entry.
    */
-  constructor(private readonly secrets?: vscode.SecretStorage) {}
+  constructor(
+    private readonly secrets?: vscode.SecretStorage,
+    private readonly oauth?: PseudoraSessionProvider,
+  ) {}
 
   private async getConfig(): Promise<{ engineUrl: string; apiKey: string }> {
     const cfg = vscode.workspace.getConfiguration('piiProtect');
     return {
-      engineUrl: cfg.get<string>('engineUrl', 'http://localhost:8000'),
+      engineUrl: cfg.get<string>('engineUrl', 'https://pseudora.cloud').replace(/\/$/, ''),
       apiKey: await getApiKey(this.secrets),
     };
   }
 
-  private buildHeaders(apiKey: string): Record<string, string> {
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (apiKey) {
-      headers['X-API-Key'] = apiKey;
+  private async buildHeaders(apiKey: string): Promise<Record<string, string>> {
+    const oauthHeaders = await this.oauth?.requestHeaders(false);
+    if (oauthHeaders) {
+      return { ...oauthHeaders, 'Content-Type': 'application/json' };
     }
-    return headers;
+
+    if (apiKey) {
+      return {
+        'Content-Type': 'application/json',
+        'X-API-Key': apiKey,
+        'X-Pii-Client': 'vscode',
+      };
+    }
+
+    const interactiveHeaders = await this.oauth?.requestHeaders(true);
+    if (!interactiveHeaders) {
+      return { 'Content-Type': 'application/json' };
+    }
+    return { ...interactiveHeaders, 'Content-Type': 'application/json' };
   }
 
   /**
@@ -73,7 +92,7 @@ export class PiiDetector {
     try {
       response = await fetch(`${engineUrl}/v1/detect`, {
         method: 'POST',
-        headers: this.buildHeaders(apiKey),
+        headers: await this.buildHeaders(apiKey),
         body: JSON.stringify({ text }),
       });
     } catch (err) {
@@ -90,11 +109,11 @@ export class PiiDetector {
     return data.entities.map(entity => {
       const pos = this.offsetToPosition(text, entity.start);
       return {
-        type: entity.entity_type,
-        text: entity.text,
+        type: entity.entity_type || entity.type || 'UNKNOWN',
+        text: entity.text || text.slice(entity.start, entity.end),
         start: entity.start,
         end: entity.end,
-        score: entity.score,
+        score: entity.score ?? entity.confidence ?? 0,
         line: pos.line,
         character: pos.character,
       };
@@ -108,7 +127,7 @@ export class PiiDetector {
     try {
       response = await fetch(`${engineUrl}/v1/anonymize`, {
         method: 'POST',
-        headers: this.buildHeaders(apiKey),
+        headers: await this.buildHeaders(apiKey),
         body: JSON.stringify({
           text,
           context_id:   `vscode_${Date.now()}`,

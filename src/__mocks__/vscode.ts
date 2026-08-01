@@ -48,6 +48,7 @@ export const window = {
   activeTextEditor: null as null,
   showErrorMessage: (_msg: string) => Promise.resolve(undefined),
   showInformationMessage: (_msg: string) => Promise.resolve(undefined),
+  showQuickPick: async () => undefined,
   createStatusBarItem: () => ({
     text: '', tooltip: '', command: '',
     show: () => {}, hide: () => {}, dispose: () => {},
@@ -59,6 +60,28 @@ export const StatusBarAlignment = { Left: 1, Right: 2 } as const;
 export const DecorationRangeBehavior = { ClosedClosed: 0 } as const;
 export const OverviewRulerLane = { Center: 4 } as const;
 export const commands = { executeCommand: async () => undefined };
+export class EventEmitter<T> {
+  private listeners: Array<(event: T) => void> = [];
+  readonly event = (listener: (event: T) => void) => {
+    this.listeners.push(listener);
+    return { dispose: () => { this.listeners = this.listeners.filter(item => item !== listener); } };
+  };
+  fire(event: T): void { this.listeners.forEach(listener => listener(event)); }
+  dispose(): void { this.listeners = []; }
+}
+export class Uri {
+  private constructor(private readonly value: string) {}
+  static parse(value: string): Uri { return new Uri(value); }
+  toString(): string { return this.value; }
+}
+export class McpHttpServerDefinition {
+  constructor(
+    public readonly label: string,
+    public uri: Uri,
+    public headers: Record<string, string> = {},
+    public version?: string,
+  ) {}
+}
 export const Range = class {
   constructor(
     public readonly startLine: number,

@@ -140,7 +140,12 @@ describe('PiiDetector.anonymize()', () => {
 // ── validateConfig() ────────────────────────────────────────────────────────
 
 describe('validateConfig()', () => {
-  const base = { apiKey: 'k', autoDetect: false, highlightColor: 'red' };
+  const base = {
+    apiKey: 'k',
+    mcpUrl: 'https://mcp.pseudora.cloud/mcp',
+    autoDetect: false,
+    highlightColor: 'red',
+  };
 
   it('returns null for a valid https URL', () => {
     expect(validateConfig({ ...base, engineUrl: 'https://api.pii-protect.cloud' })).toBeNull();

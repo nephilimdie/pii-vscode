@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 
 export interface PiiProtectConfig {
   engineUrl: string;
+  mcpUrl: string;
   apiKey: string;
   autoDetect: boolean;
   highlightColor: string;
@@ -14,7 +15,8 @@ export const API_KEY_SECRET = 'piiProtect.apiKey';
 export function getConfig(): PiiProtectConfig {
   const cfg = vscode.workspace.getConfiguration('piiProtect');
   return {
-    engineUrl: cfg.get<string>('engineUrl', 'http://localhost:8000'),
+    engineUrl: cfg.get<string>('engineUrl', 'https://pseudora.cloud').replace(/\/$/, ''),
+    mcpUrl: cfg.get<string>('mcpUrl', 'https://mcp.pseudora.cloud/mcp'),
     apiKey: cfg.get<string>('apiKey', ''),
     autoDetect: cfg.get<boolean>('autoDetect', false),
     highlightColor: cfg.get<string>('highlightColor', 'rgba(255,99,71,0.25)'),
@@ -89,6 +91,14 @@ export function validateConfig(config: PiiProtectConfig): string | null {
     new URL(config.engineUrl);
   } catch {
     return `piiProtect.engineUrl "${config.engineUrl}" is not a valid URL.`;
+  }
+  if (!config.mcpUrl) {
+    return 'piiProtect.mcpUrl is not set. Please configure it in VS Code settings.';
+  }
+  try {
+    new URL(config.mcpUrl);
+  } catch {
+    return `piiProtect.mcpUrl "${config.mcpUrl}" is not a valid URL.`;
   }
   return null;
 }
