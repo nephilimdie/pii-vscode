@@ -62,9 +62,9 @@ calling the model selected in VS Code, buffers its protected response, and asks
 Pseudora to restore the values before rendering it locally.
 
 Protected chat fails closed: if anonymization fails, the language model is not
-called. Attachments, `#` references, and previous chat turns are not forwarded;
-each protected request is isolated. This prevents unprocessed context from
-bypassing the protection boundary.
+called. Attachments and previous chat turns are not forwarded, while explicit
+`#` references are removed from the prompt. Each protected request is isolated,
+preventing unprocessed context from bypassing the protection boundary.
 
 ## MCP agent tools
 

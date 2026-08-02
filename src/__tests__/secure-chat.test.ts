@@ -57,23 +57,27 @@ describe('Pseudora protected chat', () => {
     expect(stream.markdown).toHaveBeenLastCalledWith('Risposta per Mario Rossi');
   });
 
-  it('blocks references instead of forwarding their unprotected contents', async () => {
-    const detector = { anonymizeWithContext: vi.fn() } as unknown as PiiDetector;
-    const sendRequest = vi.fn();
+  it('excludes references and continues with the protected prompt text', async () => {
+    const detector = {
+      anonymizeWithContext: vi.fn().mockResolvedValue({ text: 'Summarize', contextId: 'ctx-2' }),
+      deanonymize: vi.fn().mockResolvedValue('Summary'),
+    } as unknown as PiiDetector;
+    const sendRequest = vi.fn().mockResolvedValue({ text: asyncText('Summary') });
     const stream = responseStream();
     const chat = new PseudoraSecureChat(detector, preferences());
 
     await chat.handle({
       prompt: 'Summarize #file',
-      references: [{ id: 'file', value: 'raw contents' }],
+      references: [{ id: 'file', value: 'raw contents', range: [10, 15] }],
       model: { sendRequest },
     } as unknown as vscode.ChatRequest, {} as vscode.ChatContext, stream as unknown as vscode.ChatResponseStream, {
       isCancellationRequested: false,
     } as vscode.CancellationToken);
 
-    expect(detector.anonymizeWithContext).not.toHaveBeenCalled();
-    expect(sendRequest).not.toHaveBeenCalled();
-    expect(stream.markdown).toHaveBeenCalledWith(expect.stringContaining('does not forward attachments'));
+    expect(detector.anonymizeWithContext).toHaveBeenCalledWith('Summarize');
+    expect(JSON.stringify(sendRequest.mock.calls[0][0])).not.toContain('raw contents');
+    expect(JSON.stringify(sendRequest.mock.calls[0][0])).not.toContain('#file');
+    expect(stream.progress).toHaveBeenCalledWith(expect.stringContaining('references are excluded'));
   });
 
   it('fails closed when Pseudora cannot anonymize the request', async () => {

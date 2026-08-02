@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.4.1] - 2026-08-02
+
+### Fixed
+- Ignore implicit VS Code references without blocking protected text prompts
+- Remove explicit `#` references without reading or forwarding attachment contents
+
 ## [0.4.0] - 2026-08-02
 
 ### Added

@@ -30,21 +30,19 @@ export class PseudoraSecureChat {
       return;
     }
 
-    if (!request.prompt.trim()) {
+    const prompt = this.withoutReferences(request.prompt, request.references);
+    if (!prompt) {
       response.markdown('Write a request after `@pseudora`.');
       return;
     }
 
     if (request.references.length > 0) {
-      response.markdown(
-        'Protected chat does not forward attachments or `#` references. Remove them and paste the text after `@pseudora`.',
-      );
-      return;
+      response.progress('Attachments and references are excluded from protected chat.');
     }
 
     response.progress('Anonymizing with Pseudora before contacting the selected model...');
 
-    const protectedRequest = await this.detector.anonymizeWithContext(request.prompt);
+    const protectedRequest = await this.detector.anonymizeWithContext(prompt);
     if (token.isCancellationRequested) {
       return;
     }
@@ -76,5 +74,23 @@ export class PseudoraSecureChat {
       response.markdown(protectedReply);
       response.markdown('\n\n> Pseudora could not restore the response, so the protected version is shown.');
     }
+  }
+
+  private withoutReferences(
+    prompt: string,
+    references: readonly vscode.ChatPromptReference[],
+  ): string {
+    let sanitized = prompt;
+    for (const reference of references) {
+      if (!reference.range) {
+        continue;
+      }
+      const [start, end] = reference.range;
+      if (start < 0 || end < start || end > sanitized.length) {
+        continue;
+      }
+      sanitized = sanitized.slice(0, start) + sanitized.slice(end);
+    }
+    return sanitized.trim();
   }
 }
