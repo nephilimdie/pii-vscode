@@ -82,7 +82,21 @@ export class EventEmitter<T> {
 export class Uri {
   private constructor(private readonly value: string) {}
   static parse(value: string): Uri { return new Uri(value); }
+  static joinPath(base: Uri, ...paths: string[]): Uri {
+    return new Uri(`${base.toString().replace(/\/$/, '')}/${paths.join('/')}`);
+  }
   toString(): string { return this.value; }
+}
+export class LanguageModelTextPart {
+  constructor(public readonly value: string) {}
+}
+export class LanguageModelChatMessage {
+  static User(content: string | LanguageModelTextPart[]): { role: string; content: LanguageModelTextPart[] } {
+    return {
+      role: 'user',
+      content: typeof content === 'string' ? [new LanguageModelTextPart(content)] : content,
+    };
+  }
 }
 export class McpHttpServerDefinition {
   constructor(

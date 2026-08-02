@@ -134,7 +134,7 @@ describe('PiiDetector.anonymize()', () => {
     const body = JSON.parse(options.body as string);
     expect(body.text).toBe('sensitive content');
     expect(body.context_type).toBe('generic');
-    expect(body.context_id).toMatch(/^vscode_\d+$/);
+    expect(body.context_id).toMatch(/^vscode_[0-9a-f-]{36}$/);
   });
 
   it('uses the workspace document type and anonymization mode', async () => {
@@ -152,6 +152,32 @@ describe('PiiDetector.anonymize()', () => {
       context_type: 'fine_appeal',
       mode: 'surrogate',
     });
+  });
+
+  it('keeps the context id and restores the model response', async () => {
+    const fetchSpy = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ text: 'Ciao [PERSON_1]' }),
+        text: async () => '{}',
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ text: 'Ciao Mario Rossi' }),
+        text: async () => '{}',
+      });
+    vi.stubGlobal('fetch', fetchSpy);
+
+    const protectedText = await detector.anonymizeWithContext('Ciao Mario Rossi');
+    const restored = await detector.deanonymize('Arrivederci [PERSON_1]', protectedText.contextId);
+
+    expect(protectedText.text).toBe('Ciao [PERSON_1]');
+    expect(restored).toBe('Ciao Mario Rossi');
+    const deanonymizeBody = JSON.parse(fetchSpy.mock.calls[1][1].body as string);
+    expect(deanonymizeBody.context_id).toBe(protectedText.contextId);
+    expect(fetchSpy.mock.calls[1][0]).toContain('/v1/deanonymize');
   });
 });
 

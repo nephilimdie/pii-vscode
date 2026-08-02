@@ -3,7 +3,7 @@
   "displayName": "Pseudora",
   "publisher": "pseudora",
   "description": "Detect and anonymize personal data and connect Pseudora MCP to VS Code",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "license": "SEE LICENSE IN LICENSE",
   "repository": {
     "type": "git",
@@ -76,7 +76,20 @@
       },
       {
         "command": "piiProtect.toggleMcp",
-        "title": "Pseudora: Enable or Disable MCP for AI Chats"
+        "title": "Pseudora: Enable or Disable MCP Agent Tools"
+      },
+      {
+        "command": "piiProtect.openSecureChat",
+        "title": "Pseudora: Open Protected AI Chat"
+      }
+    ],
+    "chatParticipants": [
+      {
+        "id": "pseudora.secureChat",
+        "name": "pseudora",
+        "fullName": "Pseudora Protected Chat",
+        "description": "Anonymize your request before it reaches the selected language model",
+        "isSticky": true
       }
     ],
     "mcpServerDefinitionProviders": [

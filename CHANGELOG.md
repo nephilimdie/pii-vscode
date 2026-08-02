@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.4.0] - 2026-08-02
+
+### Added
+- `@pseudora` protected Chat participant that anonymizes before invoking the selected model
+- Automatic response restoration through the same protected context
+- Protected-chat command in the workspace menu
+
+### Changed
+- Clarified that MCP tools run inside agent workflows and do not intercept an already submitted prompt
+
 ## [0.3.1] - 2026-08-02
 
 ### Added

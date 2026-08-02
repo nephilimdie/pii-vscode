@@ -10,7 +10,7 @@ type OperationState =
   | { type: 'error'; message: string };
 
 interface MenuItem extends vscode.QuickPickItem {
-  action: 'connect' | 'team' | 'document' | 'mode' | 'toggle' | 'mcp' | 'detect' | 'disconnect';
+  action: 'connect' | 'team' | 'document' | 'mode' | 'secureChat' | 'toggle' | 'mcp' | 'detect' | 'disconnect';
 }
 
 export interface PseudoraOperationStatus {
@@ -64,9 +64,9 @@ export class PseudoraStatusMenu implements vscode.Disposable, PseudoraOperationS
           action: 'mode',
         },
         {
-          label: prefs.mcpEnabled ? '$(server) MCP for AI chats: On' : '$(server) MCP for AI chats: Off',
+          label: prefs.mcpEnabled ? '$(server) MCP agent tools: On' : '$(server) MCP agent tools: Off',
           description: prefs.mcpEnabled
-            ? 'Available to Copilot and other VS Code AI agents'
+            ? 'Available during agent workflows; not a prompt interceptor'
             : 'Editor protection remains available',
           action: 'mcp',
         },
@@ -80,6 +80,11 @@ export class PseudoraStatusMenu implements vscode.Disposable, PseudoraOperationS
     });
 
     if (account.connected && prefs.enabled) {
+      items.push({
+        label: '$(comment-discussion) Open protected AI chat',
+        description: 'Use @pseudora to anonymize before the selected model',
+        action: 'secureChat',
+      });
       items.push({ label: '$(search) Detect PII in active file', action: 'detect' });
     }
     if (account.connected) {
@@ -143,6 +148,9 @@ export class PseudoraStatusMenu implements vscode.Disposable, PseudoraOperationS
       case 'mode':
         await this.selectMode();
         break;
+      case 'secureChat':
+        await vscode.commands.executeCommand('piiProtect.openSecureChat');
+        break;
       case 'toggle': {
         await this.toggleEnabled();
         break;
@@ -167,7 +175,7 @@ export class PseudoraStatusMenu implements vscode.Disposable, PseudoraOperationS
   async toggleMcp(): Promise<void> {
     const enabled = await this.preferences.toggleMcp();
     void vscode.window.showInformationMessage(
-      `Pseudora MCP ${enabled ? 'enabled' : 'disabled'} for AI chats in this workspace.`,
+      `Pseudora MCP agent tools ${enabled ? 'enabled' : 'disabled'} in this workspace.`,
     );
   }
 
@@ -258,7 +266,7 @@ export class PseudoraStatusMenu implements vscode.Disposable, PseudoraOperationS
       `Team: ${account.team?.name || 'not selected'}`,
       `Document type: ${prefs.documentType}`,
       `Mode: ${modeLabel(prefs.mode)}`,
-      `MCP for AI chats: ${prefs.mcpEnabled ? 'enabled' : 'disabled'}`,
+      `MCP agent tools: ${prefs.mcpEnabled ? 'enabled' : 'disabled'}`,
     ].join('\n') + operationDetail;
   }
 

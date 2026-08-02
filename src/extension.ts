@@ -7,6 +7,7 @@ import { PseudoraOAuthClient } from './oauth';
 import { PseudoraMcpProvider } from './mcp-provider';
 import { PseudoraStatusMenu } from './status-menu';
 import { PseudoraWorkspacePreferences } from './workspace-preferences';
+import { PseudoraSecureChat } from './secure-chat';
 
 export function activate(context: vscode.ExtensionContext): void {
   const oauth = new PseudoraOAuthClient(context);
@@ -15,6 +16,7 @@ export function activate(context: vscode.ExtensionContext): void {
   const highlighter = new PiiHighlighter();
   const statusMenu = new PseudoraStatusMenu(oauth, preferences);
   const mcpProvider = new PseudoraMcpProvider(oauth, preferences);
+  const secureChat = new PseudoraSecureChat(detector, preferences);
 
   // Lift any key left in settings.json into the OS keychain.
   void migrateApiKeyOutOfSettings(context.secrets);
@@ -72,8 +74,13 @@ export function activate(context: vscode.ExtensionContext): void {
     await statusMenu.toggleMcp();
   });
 
+  const openSecureChat = vscode.commands.registerCommand('piiProtect.openSecureChat', async () => {
+    await vscode.commands.executeCommand('workbench.action.chat.open', { query: '@pseudora ' });
+  });
+
   const uriHandler = vscode.window.registerUriHandler(oauth);
   const mcpRegistration = vscode.lm.registerMcpServerDefinitionProvider('pseudora.mcp', mcpProvider);
+  const secureChatRegistration = secureChat.register(context.extensionUri);
 
   // Register all commands
   registerCommands(context, detector, highlighter, statusMenu, preferences);
@@ -134,8 +141,10 @@ export function activate(context: vscode.ExtensionContext): void {
     selectMode,
     toggleEnabled,
     toggleMcp,
+    openSecureChat,
     uriHandler,
     mcpRegistration,
+    secureChatRegistration,
     mcpProvider,
     oauth,
     preferences,

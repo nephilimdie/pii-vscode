@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { randomUUID } from 'node:crypto';
 import { getApiKey } from './config';
 import { PseudoraSessionProvider } from './oauth';
 import { PseudoraWorkspacePreferences, WorkspacePreferencesSnapshot } from './workspace-preferences';
@@ -26,7 +27,18 @@ interface EngineDetectResponse {
 }
 
 interface EngineAnonymizeResponse {
-  anonymized_text: string;
+  anonymized_text?: string;
+  text?: string;
+}
+
+interface EngineDeanonymizeResponse {
+  deanonymized_text?: string;
+  text?: string;
+}
+
+export interface ProtectedText {
+  text: string;
+  contextId: string;
 }
 
 export class PiiDetector {
@@ -96,7 +108,7 @@ export class PiiDetector {
       response = await fetch(`${engineUrl}/v1/detect`, {
         method: 'POST',
         headers: await this.buildHeaders(apiKey),
-        body: JSON.stringify(this.protectionPayload(text, prefs, false)),
+        body: JSON.stringify(this.protectionPayload(text, prefs)),
       });
     } catch (err) {
       throw new Error(`Cannot reach PII engine at ${engineUrl}: ${String(err)}`);
@@ -124,15 +136,20 @@ export class PiiDetector {
   }
 
   async anonymize(text: string): Promise<string> {
+    return (await this.anonymizeWithContext(text)).text;
+  }
+
+  async anonymizeWithContext(text: string): Promise<ProtectedText> {
     const { engineUrl, apiKey } = await this.getConfig();
     const prefs = this.currentPreferences();
+    const contextId = `vscode_${randomUUID()}`;
 
     let response: Response;
     try {
       response = await fetch(`${engineUrl}/v1/anonymize`, {
         method: 'POST',
         headers: await this.buildHeaders(apiKey),
-        body: JSON.stringify(this.protectionPayload(text, prefs, true)),
+        body: JSON.stringify(this.protectionPayload(text, prefs, contextId)),
       });
     } catch (err) {
       throw new Error(`Cannot reach PII engine at ${engineUrl}: ${String(err)}`);
@@ -144,7 +161,41 @@ export class PiiDetector {
     }
 
     const data = (await response.json()) as EngineAnonymizeResponse;
-    return data.anonymized_text;
+    const protectedText = data.anonymized_text ?? data.text;
+    if (typeof protectedText !== 'string') {
+      throw new Error('PII engine returned an invalid anonymization response.');
+    }
+
+    return { text: protectedText, contextId };
+  }
+
+  async deanonymize(text: string, contextId: string): Promise<string> {
+    const { engineUrl, apiKey } = await this.getConfig();
+    const prefs = this.currentPreferences();
+
+    let response: Response;
+    try {
+      response = await fetch(`${engineUrl}/v1/deanonymize`, {
+        method: 'POST',
+        headers: await this.buildHeaders(apiKey),
+        body: JSON.stringify(this.protectionPayload(text, prefs, contextId)),
+      });
+    } catch (err) {
+      throw new Error(`Cannot reach PII engine at ${engineUrl}: ${String(err)}`);
+    }
+
+    if (!response.ok) {
+      const body = await response.text();
+      throw new Error(`PII engine returned ${response.status}: ${body}`);
+    }
+
+    const data = (await response.json()) as EngineDeanonymizeResponse;
+    const restoredText = data.deanonymized_text ?? data.text;
+    if (typeof restoredText !== 'string') {
+      throw new Error('PII engine returned an invalid deanonymization response.');
+    }
+
+    return restoredText;
   }
 
   private currentPreferences(): WorkspacePreferencesSnapshot {
@@ -159,11 +210,11 @@ export class PiiDetector {
   private protectionPayload(
     text: string,
     preferences: WorkspacePreferencesSnapshot,
-    includeContextId: boolean,
+    contextId?: string,
   ): Record<string, string> {
     const payload: Record<string, string> = { text };
-    if (includeContextId) {
-      payload.context_id = `vscode_${Date.now()}`;
+    if (contextId) {
+      payload.context_id = contextId;
       payload.mode = preferences.mode;
     }
 
