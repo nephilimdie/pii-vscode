@@ -15,6 +15,8 @@ The extension stores OAuth tokens in VS Code SecretStorage and registers
 `https://mcp.pseudora.cloud/mcp` programmatically. Tokens are not written to
 `settings.json` or `mcp.json`. Team, document type, anonymization mode, and pause
 state are workspace-specific. They are applied to both editor API calls and MCP.
+MCP is registered automatically and enabled by default. It can be disabled for
+one workspace without disabling editor detection and anonymization.
 
 Document type selects the policy and detection rules, for example
 `fine_appeal`. Mode selects how values are replaced: `Tag` uses reversible
@@ -47,6 +49,7 @@ keychain and never in settings.
 | `Pseudora: Select Document Type` | Select the ACL-filtered policy for the workspace |
 | `Pseudora: Select Anonymization Mode` | Choose tag masking or realistic surrogates |
 | `Pseudora: Pause or Resume Workspace` | Disable or enable editor actions, automatic scans, and MCP |
+| `Pseudora: Enable or Disable MCP for AI Chats` | Toggle only the MCP tools used by Copilot and other AI agents |
 | `Pseudora: Open Workspace Controls` | Open the unified Pseudora menu |
 | `Pseudora: Disconnect Account` | Remove the local OAuth session |
 

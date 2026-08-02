@@ -150,6 +150,7 @@ export class PiiDetector {
   private currentPreferences(): WorkspacePreferencesSnapshot {
     return this.preferences?.snapshot() ?? {
       enabled: true,
+      mcpEnabled: true,
       documentType: 'generic',
       mode: 'tag',
     };

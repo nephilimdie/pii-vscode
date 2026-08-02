@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.1] - 2026-08-02
+
+### Added
+- Workspace command and menu control to enable or disable MCP independently
+
+### Changed
+- MCP is registered automatically and enabled by default for compatible AI chats
+
 ## [0.3.0] - 2026-08-02
 
 ### Added

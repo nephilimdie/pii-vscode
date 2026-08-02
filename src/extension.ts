@@ -68,6 +68,10 @@ export function activate(context: vscode.ExtensionContext): void {
     await statusMenu.toggleEnabled();
   });
 
+  const toggleMcp = vscode.commands.registerCommand('piiProtect.toggleMcp', async () => {
+    await statusMenu.toggleMcp();
+  });
+
   const uriHandler = vscode.window.registerUriHandler(oauth);
   const mcpRegistration = vscode.lm.registerMcpServerDefinitionProvider('pseudora.mcp', mcpProvider);
 
@@ -129,6 +133,7 @@ export function activate(context: vscode.ExtensionContext): void {
     selectDocumentType,
     selectMode,
     toggleEnabled,
+    toggleMcp,
     uriHandler,
     mcpRegistration,
     mcpProvider,

@@ -14,11 +14,18 @@ describe('workspace preferences', () => {
   it('stores pause, document type, and mode in the workspace', async () => {
     const preferences = subject();
 
-    expect(preferences.snapshot()).toEqual({ enabled: true, documentType: 'generic', mode: 'tag' });
+    expect(preferences.snapshot()).toEqual({
+      enabled: true,
+      mcpEnabled: true,
+      documentType: 'generic',
+      mode: 'tag',
+    });
     await preferences.setDocumentType('fine_appeal', 'surrogate');
     expect(preferences.snapshot()).toMatchObject({ documentType: 'fine_appeal', mode: 'surrogate' });
     await preferences.toggle();
     expect(preferences.snapshot().enabled).toBe(false);
+    await preferences.toggleMcp();
+    expect(preferences.snapshot().mcpEnabled).toBe(false);
 
     preferences.dispose();
   });

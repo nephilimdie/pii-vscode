@@ -4,9 +4,10 @@ import { PseudoraMcpProvider } from '../mcp-provider';
 import { PseudoraSessionProvider } from '../oauth';
 import { PseudoraWorkspacePreferences } from '../workspace-preferences';
 
-function preferences(enabled = true): PseudoraWorkspacePreferences {
+function preferences(enabled = true, mcpEnabled = true): PseudoraWorkspacePreferences {
   const values: Record<string, unknown> = {
     'piiProtect.enabled': enabled,
+    'piiProtect.mcpEnabled': mcpEnabled,
     'piiProtect.documentType': 'fine_appeal',
     'piiProtect.mode': 'surrogate',
   };
@@ -62,6 +63,23 @@ describe('Pseudora MCP provider', () => {
     const prefs = preferences(false);
     const provider = new PseudoraMcpProvider(sessions, prefs);
 
+    expect(provider.provideMcpServerDefinitions()).toEqual([]);
+
+    provider.dispose();
+    prefs.dispose();
+  });
+
+  it('removes only MCP when the AI integration is disabled', () => {
+    const changed = new EventEmitter<void>();
+    const sessions = {
+      onDidChange: changed.event,
+      selectedTeamCode: () => 'team-blue',
+      requestHeaders: async () => undefined,
+    } as PseudoraSessionProvider;
+    const prefs = preferences(true, false);
+    const provider = new PseudoraMcpProvider(sessions, prefs);
+
+    expect(prefs.snapshot().enabled).toBe(true);
     expect(provider.provideMcpServerDefinitions()).toEqual([]);
 
     provider.dispose();

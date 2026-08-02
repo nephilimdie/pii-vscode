@@ -10,7 +10,7 @@ type OperationState =
   | { type: 'error'; message: string };
 
 interface MenuItem extends vscode.QuickPickItem {
-  action: 'connect' | 'team' | 'document' | 'mode' | 'toggle' | 'detect' | 'disconnect';
+  action: 'connect' | 'team' | 'document' | 'mode' | 'toggle' | 'mcp' | 'detect' | 'disconnect';
 }
 
 export interface PseudoraOperationStatus {
@@ -62,6 +62,13 @@ export class PseudoraStatusMenu implements vscode.Disposable, PseudoraOperationS
           label: `$(symbol-keyword) Mode: ${modeLabel(prefs.mode)}`,
           description: prefs.mode === 'tag' ? 'Reversible placeholders' : 'Realistic fake values',
           action: 'mode',
+        },
+        {
+          label: prefs.mcpEnabled ? '$(server) MCP for AI chats: On' : '$(server) MCP for AI chats: Off',
+          description: prefs.mcpEnabled
+            ? 'Available to Copilot and other VS Code AI agents'
+            : 'Editor protection remains available',
+          action: 'mcp',
         },
       );
     }
@@ -140,6 +147,9 @@ export class PseudoraStatusMenu implements vscode.Disposable, PseudoraOperationS
         await this.toggleEnabled();
         break;
       }
+      case 'mcp':
+        await this.toggleMcp();
+        break;
       case 'detect':
         await vscode.commands.executeCommand('piiProtect.detectInFile');
         break;
@@ -152,6 +162,13 @@ export class PseudoraStatusMenu implements vscode.Disposable, PseudoraOperationS
   async toggleEnabled(): Promise<void> {
     const enabled = await this.preferences.toggle();
     void vscode.window.showInformationMessage(`Pseudora ${enabled ? 'resumed' : 'paused'} for this workspace.`);
+  }
+
+  async toggleMcp(): Promise<void> {
+    const enabled = await this.preferences.toggleMcp();
+    void vscode.window.showInformationMessage(
+      `Pseudora MCP ${enabled ? 'enabled' : 'disabled'} for AI chats in this workspace.`,
+    );
   }
 
   async selectDocumentType(): Promise<void> {
@@ -230,7 +247,8 @@ export class PseudoraStatusMenu implements vscode.Disposable, PseudoraOperationS
       this.item.text = '$(error) Pseudora: Error';
       this.item.backgroundColor = new vscode.ThemeColor('statusBarItem.errorBackground');
     } else {
-      this.item.text = `$(shield) Pseudora · ${account.team?.name || 'team?'} · ${displayValue(prefs.documentType)} · ${modeLabel(prefs.mode)}`;
+      const mcpState = prefs.mcpEnabled ? '' : ' · MCP off';
+      this.item.text = `$(shield) Pseudora · ${account.team?.name || 'team?'} · ${displayValue(prefs.documentType)} · ${modeLabel(prefs.mode)}${mcpState}`;
       this.clearColors();
     }
 
@@ -240,6 +258,7 @@ export class PseudoraStatusMenu implements vscode.Disposable, PseudoraOperationS
       `Team: ${account.team?.name || 'not selected'}`,
       `Document type: ${prefs.documentType}`,
       `Mode: ${modeLabel(prefs.mode)}`,
+      `MCP for AI chats: ${prefs.mcpEnabled ? 'enabled' : 'disabled'}`,
     ].join('\n') + operationDetail;
   }
 

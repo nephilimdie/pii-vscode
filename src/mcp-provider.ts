@@ -21,7 +21,7 @@ export class PseudoraMcpProvider implements vscode.McpServerDefinitionProvider<v
 
   provideMcpServerDefinitions(): vscode.McpHttpServerDefinition[] {
     const preferences = this.preferences.snapshot();
-    if (!preferences.enabled) {
+    if (!preferences.enabled || !preferences.mcpEnabled) {
       return [];
     }
 
@@ -50,7 +50,7 @@ export class PseudoraMcpProvider implements vscode.McpServerDefinitionProvider<v
     }
 
     const preferences = this.preferences.snapshot();
-    if (!preferences.enabled) {
+    if (!preferences.enabled || !preferences.mcpEnabled) {
       return undefined;
     }
 

@@ -4,11 +4,13 @@ export type PseudoraMode = 'tag' | 'surrogate';
 
 export interface WorkspacePreferencesSnapshot {
   enabled: boolean;
+  mcpEnabled: boolean;
   documentType: string;
   mode: PseudoraMode;
 }
 
 const ENABLED_KEY = 'piiProtect.enabled';
+const MCP_ENABLED_KEY = 'piiProtect.mcpEnabled';
 const DOCUMENT_TYPE_KEY = 'piiProtect.documentType';
 const MODE_KEY = 'piiProtect.mode';
 
@@ -22,6 +24,7 @@ export class PseudoraWorkspacePreferences implements vscode.Disposable {
   snapshot(): WorkspacePreferencesSnapshot {
     return {
       enabled: this.state.get<boolean>(ENABLED_KEY, true),
+      mcpEnabled: this.state.get<boolean>(MCP_ENABLED_KEY, true),
       documentType: this.state.get<string>(DOCUMENT_TYPE_KEY, 'generic'),
       mode: this.state.get<PseudoraMode>(MODE_KEY, 'tag'),
     };
@@ -30,6 +33,13 @@ export class PseudoraWorkspacePreferences implements vscode.Disposable {
   async toggle(): Promise<boolean> {
     const enabled = !this.snapshot().enabled;
     await this.state.update(ENABLED_KEY, enabled);
+    this.changed.fire();
+    return enabled;
+  }
+
+  async toggleMcp(): Promise<boolean> {
+    const enabled = !this.snapshot().mcpEnabled;
+    await this.state.update(MCP_ENABLED_KEY, enabled);
     this.changed.fire();
     return enabled;
   }
