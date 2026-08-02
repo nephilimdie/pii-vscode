@@ -19,6 +19,7 @@ describe('workspace preferences', () => {
       mcpEnabled: true,
       documentType: 'generic',
       mode: 'tag',
+      chatResponseMode: 'protected',
     });
     await preferences.setDocumentType('fine_appeal', 'surrogate');
     expect(preferences.snapshot()).toMatchObject({ documentType: 'fine_appeal', mode: 'surrogate' });
@@ -26,6 +27,8 @@ describe('workspace preferences', () => {
     expect(preferences.snapshot().enabled).toBe(false);
     await preferences.toggleMcp();
     expect(preferences.snapshot().mcpEnabled).toBe(false);
+    await preferences.setChatResponseMode('restored');
+    expect(preferences.snapshot().chatResponseMode).toBe('restored');
 
     preferences.dispose();
   });

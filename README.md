@@ -21,6 +21,9 @@ one workspace without disabling editor detection and anonymization.
 Document type selects the policy and detection rules, for example
 `fine_appeal`. Mode selects how values are replaced: `Tag` uses reversible
 placeholders, while `Surrogate` uses reversible realistic fake values.
+AI response mode controls latency: `Protected streaming` displays the protected
+model response as it arrives, while `Restored response` waits for completion and
+restores original values before display.
 
 ## Configuration
 
@@ -48,6 +51,7 @@ keychain and never in settings.
 | `Pseudora: Select Team` | Select the team for the current workspace |
 | `Pseudora: Select Document Type` | Select the ACL-filtered policy for the workspace |
 | `Pseudora: Select Anonymization Mode` | Choose tag masking or realistic surrogates |
+| `Pseudora: Select AI Response Mode` | Choose protected streaming or restored responses |
 | `Pseudora: Pause or Resume Workspace` | Disable or enable editor actions, automatic scans, and MCP |
 | `Pseudora: Open Protected AI Chat` | Open Chat prefilled with `@pseudora` |
 | `Pseudora: Enable or Disable MCP Agent Tools` | Toggle only the MCP tools used by Copilot and other AI agents |
@@ -58,8 +62,12 @@ keychain and never in settings.
 
 Use `@pseudora` at the start of a Chat request, or select **Open protected AI
 chat** from the Pseudora status menu. The extension anonymizes the prompt before
-calling the model selected in VS Code, buffers its protected response, and asks
-Pseudora to restore the values before rendering it locally.
+calling the model selected in VS Code. By default, the protected response is
+streamed immediately. Select **AI response: Restored** from the workspace menu
+to buffer the response and restore original values before rendering it locally.
+
+Each response reports anonymization, first-token, model, and optional restoration
+timings. Restored tag responses without Pseudora tokens skip the extra API call.
 
 Protected chat fails closed: if anonymization fails, the language model is not
 called. Attachments and previous chat turns are not forwarded, while explicit

@@ -3,7 +3,7 @@
   "displayName": "Pseudora",
   "publisher": "pseudora",
   "description": "Detect and anonymize personal data and connect Pseudora MCP to VS Code",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "license": "SEE LICENSE IN LICENSE",
   "repository": {
     "type": "git",
@@ -69,6 +69,10 @@
       {
         "command": "piiProtect.selectMode",
         "title": "Pseudora: Select Anonymization Mode"
+      },
+      {
+        "command": "piiProtect.selectChatResponseMode",
+        "title": "Pseudora: Select AI Response Mode"
       },
       {
         "command": "piiProtect.toggleEnabled",

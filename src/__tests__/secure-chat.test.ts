@@ -4,10 +4,12 @@ import { PiiDetector } from '../detector';
 import { PseudoraSecureChat } from '../secure-chat';
 import { PseudoraWorkspacePreferences } from '../workspace-preferences';
 
-function asyncText(value: string): AsyncIterable<string> {
+function asyncText(...values: string[]): AsyncIterable<string> {
   return {
     async *[Symbol.asyncIterator]() {
-      yield value;
+      for (const value of values) {
+        yield value;
+      }
     },
   };
 }
@@ -19,9 +21,13 @@ function responseStream() {
   };
 }
 
-function preferences(enabled = true): PseudoraWorkspacePreferences {
+function preferences(
+  enabled = true,
+  chatResponseMode: 'protected' | 'restored' = 'protected',
+  mode: 'tag' | 'surrogate' = 'tag',
+): PseudoraWorkspacePreferences {
   return {
-    snapshot: () => ({ enabled, mcpEnabled: true, documentType: 'generic', mode: 'tag' }),
+    snapshot: () => ({ enabled, mcpEnabled: true, documentType: 'generic', mode, chatResponseMode }),
   } as PseudoraWorkspacePreferences;
 }
 
@@ -36,7 +42,7 @@ describe('Pseudora protected chat', () => {
     } as unknown as PiiDetector;
     const sendRequest = vi.fn().mockResolvedValue({ text: asyncText('Risposta per [PERSON_1]') });
     const stream = responseStream();
-    const chat = new PseudoraSecureChat(detector, preferences());
+    const chat = new PseudoraSecureChat(detector, preferences(true, 'restored'));
 
     await chat.handle({
       prompt: 'Scrivi a Mario Rossi presso mario@example.com',
@@ -54,7 +60,52 @@ describe('Pseudora protected chat', () => {
     expect(serializedMessages).not.toContain('Mario Rossi');
     expect(serializedMessages).not.toContain('mario@example.com');
     expect(detector.deanonymize).toHaveBeenCalledWith('Risposta per [PERSON_1]', 'ctx-1');
-    expect(stream.markdown).toHaveBeenLastCalledWith('Risposta per Mario Rossi');
+    expect(stream.markdown).toHaveBeenCalledWith('Risposta per Mario Rossi');
+    expect(stream.markdown).toHaveBeenLastCalledWith(expect.stringContaining('Restored response'));
+  });
+
+  it('streams protected model fragments without waiting for restoration', async () => {
+    const detector = {
+      anonymizeWithContext: vi.fn().mockResolvedValue({ text: 'Ciao [PERSON_1]', contextId: 'ctx-fast' }),
+      deanonymize: vi.fn(),
+    } as unknown as PiiDetector;
+    const sendRequest = vi.fn().mockResolvedValue({ text: asyncText('Ciao ', '[PERSON_1]') });
+    const stream = responseStream();
+    const chat = new PseudoraSecureChat(detector, preferences());
+
+    await chat.handle({
+      prompt: 'Ciao Mario Rossi',
+      references: [],
+      model: { sendRequest },
+    } as unknown as vscode.ChatRequest, {} as vscode.ChatContext, stream as unknown as vscode.ChatResponseStream, {
+      isCancellationRequested: false,
+    } as vscode.CancellationToken);
+
+    expect(stream.markdown.mock.calls.slice(0, 2)).toEqual([['Ciao '], ['[PERSON_1]']]);
+    expect(detector.deanonymize).not.toHaveBeenCalled();
+    expect(stream.markdown).toHaveBeenLastCalledWith(expect.stringContaining('Protected streaming'));
+  });
+
+  it('skips restoration when a tag response contains no Pseudora tokens', async () => {
+    const detector = {
+      anonymizeWithContext: vi.fn().mockResolvedValue({ text: 'Scrivi una risposta', contextId: 'ctx-clean' }),
+      deanonymize: vi.fn(),
+    } as unknown as PiiDetector;
+    const sendRequest = vi.fn().mockResolvedValue({ text: asyncText('Risposta senza dati personali') });
+    const stream = responseStream();
+    const chat = new PseudoraSecureChat(detector, preferences(true, 'restored'));
+
+    await chat.handle({
+      prompt: 'Scrivi una risposta',
+      references: [],
+      model: { sendRequest },
+    } as unknown as vscode.ChatRequest, {} as vscode.ChatContext, stream as unknown as vscode.ChatResponseStream, {
+      isCancellationRequested: false,
+    } as vscode.CancellationToken);
+
+    expect(detector.deanonymize).not.toHaveBeenCalled();
+    expect(stream.markdown).toHaveBeenCalledWith('Risposta senza dati personali');
+    expect(stream.markdown).toHaveBeenLastCalledWith(expect.stringContaining('No restoration needed'));
   });
 
   it('excludes references and continues with the protected prompt text', async () => {

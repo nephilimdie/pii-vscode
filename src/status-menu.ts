@@ -10,7 +10,7 @@ type OperationState =
   | { type: 'error'; message: string };
 
 interface MenuItem extends vscode.QuickPickItem {
-  action: 'connect' | 'team' | 'document' | 'mode' | 'secureChat' | 'toggle' | 'mcp' | 'detect' | 'disconnect';
+  action: 'connect' | 'team' | 'document' | 'mode' | 'chatResponse' | 'secureChat' | 'toggle' | 'mcp' | 'detect' | 'disconnect';
 }
 
 export interface PseudoraOperationStatus {
@@ -62,6 +62,13 @@ export class PseudoraStatusMenu implements vscode.Disposable, PseudoraOperationS
           label: `$(symbol-keyword) Mode: ${modeLabel(prefs.mode)}`,
           description: prefs.mode === 'tag' ? 'Reversible placeholders' : 'Realistic fake values',
           action: 'mode',
+        },
+        {
+          label: `$(comment) AI response: ${chatResponseLabel(prefs.chatResponseMode)}`,
+          description: prefs.chatResponseMode === 'protected'
+            ? 'Stream protected values immediately'
+            : 'Wait and restore original values before display',
+          action: 'chatResponse',
         },
         {
           label: prefs.mcpEnabled ? '$(server) MCP agent tools: On' : '$(server) MCP agent tools: Off',
@@ -148,6 +155,9 @@ export class PseudoraStatusMenu implements vscode.Disposable, PseudoraOperationS
       case 'mode':
         await this.selectMode();
         break;
+      case 'chatResponse':
+        await this.selectChatResponseMode();
+        break;
       case 'secureChat':
         await vscode.commands.executeCommand('piiProtect.openSecureChat');
         break;
@@ -213,6 +223,24 @@ export class PseudoraStatusMenu implements vscode.Disposable, PseudoraOperationS
     }
   }
 
+  async selectChatResponseMode(): Promise<void> {
+    const selected = await vscode.window.showQuickPick([
+      {
+        label: 'Protected streaming',
+        description: 'Fast: show placeholders or surrogates as the model responds',
+        mode: 'protected' as const,
+      },
+      {
+        label: 'Restored response',
+        description: 'Wait for the complete response and restore original values',
+        mode: 'restored' as const,
+      },
+    ], { title: 'Select the Pseudora AI response mode', ignoreFocusOut: true });
+    if (selected) {
+      await this.preferences.setChatResponseMode(selected.mode);
+    }
+  }
+
   async reconcileDocumentType(): Promise<void> {
     const current = this.preferences.snapshot().documentType;
     try {
@@ -266,6 +294,7 @@ export class PseudoraStatusMenu implements vscode.Disposable, PseudoraOperationS
       `Team: ${account.team?.name || 'not selected'}`,
       `Document type: ${prefs.documentType}`,
       `Mode: ${modeLabel(prefs.mode)}`,
+      `AI response: ${chatResponseLabel(prefs.chatResponseMode)}`,
       `MCP agent tools: ${prefs.mcpEnabled ? 'enabled' : 'disabled'}`,
     ].join('\n') + operationDetail;
   }
@@ -282,4 +311,8 @@ function displayValue(value: string): string {
 
 function modeLabel(mode: string): string {
   return mode === 'surrogate' ? 'Surrogate' : 'Tag';
+}
+
+function chatResponseLabel(mode: string): string {
+  return mode === 'restored' ? 'Restored' : 'Protected streaming';
 }

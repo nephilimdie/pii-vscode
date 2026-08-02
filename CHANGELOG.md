@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.5.0] - 2026-08-02
+
+### Added
+- Workspace choice between protected streaming and restored AI responses
+- Per-request timings for anonymization, first model token, generation, and restoration
+
+### Changed
+- Protected responses now stream by default for lower perceived latency
+- Restored mode skips the deanonymization request when a tag response has no Pseudora tokens
+
 ## [0.4.1] - 2026-08-02
 
 ### Fixed

@@ -25,7 +25,8 @@ export class PseudoraSecureChat {
     response: vscode.ChatResponseStream,
     token: vscode.CancellationToken,
   ): Promise<void> {
-    if (!this.preferences.snapshot().enabled) {
+    const preferences = this.preferences.snapshot();
+    if (!preferences.enabled) {
       response.markdown('Pseudora is paused in this workspace. Resume it before using protected chat.');
       return;
     }
@@ -42,7 +43,9 @@ export class PseudoraSecureChat {
 
     response.progress('Anonymizing with Pseudora before contacting the selected model...');
 
+    const anonymizeStartedAt = Date.now();
     const protectedRequest = await this.detector.anonymizeWithContext(prompt);
+    const anonymizeMs = Date.now() - anonymizeStartedAt;
     if (token.isCancellationRequested) {
       return;
     }
@@ -56,20 +59,49 @@ export class PseudoraSecureChat {
         + `Protected user request:\n${protectedRequest.text}`,
       ),
     ])];
+    const modelStartedAt = Date.now();
     const modelResponse = await request.model.sendRequest(messages, {}, token);
     let protectedReply = '';
+    let firstTokenMs: number | undefined;
     for await (const fragment of modelResponse.text) {
+      if (firstTokenMs === undefined && fragment) {
+        firstTokenMs = Date.now() - modelStartedAt;
+      }
       protectedReply += fragment;
+      if (preferences.chatResponseMode === 'protected') {
+        response.markdown(fragment);
+      }
     }
+    const modelMs = Date.now() - modelStartedAt;
 
     if (!protectedReply) {
       response.markdown('The selected model returned an empty response.');
       return;
     }
 
+    if (preferences.chatResponseMode === 'protected') {
+      this.writeTimings(response, 'Protected streaming', anonymizeMs, firstTokenMs, modelMs);
+      return;
+    }
+
+    if (!this.needsRestoration(protectedReply, preferences.mode)) {
+      response.markdown(protectedReply);
+      this.writeTimings(response, 'No restoration needed', anonymizeMs, firstTokenMs, modelMs);
+      return;
+    }
+
     response.progress('Restoring your values locally through Pseudora...');
+    const restoreStartedAt = Date.now();
     try {
       response.markdown(await this.detector.deanonymize(protectedReply, protectedRequest.contextId));
+      this.writeTimings(
+        response,
+        'Restored response',
+        anonymizeMs,
+        firstTokenMs,
+        modelMs,
+        Date.now() - restoreStartedAt,
+      );
     } catch {
       response.markdown(protectedReply);
       response.markdown('\n\n> Pseudora could not restore the response, so the protected version is shown.');
@@ -93,4 +125,35 @@ export class PseudoraSecureChat {
     }
     return sanitized.trim();
   }
+
+  private needsRestoration(text: string, mode: string): boolean {
+    return mode === 'surrogate' || /\[[A-Z][A-Z0-9_]*_\d+\]/.test(text);
+  }
+
+  private writeTimings(
+    response: vscode.ChatResponseStream,
+    mode: string,
+    anonymizeMs: number,
+    firstTokenMs: number | undefined,
+    modelMs: number,
+    restoreMs?: number,
+  ): void {
+    const parts = [
+      mode,
+      `anonymize ${formatDuration(anonymizeMs)}`,
+      `first token ${formatDuration(firstTokenMs ?? modelMs)}`,
+      `model ${formatDuration(modelMs)}`,
+    ];
+    if (restoreMs !== undefined) {
+      parts.push(`restore ${formatDuration(restoreMs)}`);
+    }
+    response.markdown(`\n\n---\n_Pseudora · ${parts.join(' · ')}_`);
+  }
+}
+
+function formatDuration(milliseconds: number): string {
+  if (milliseconds < 1000) {
+    return `${milliseconds} ms`;
+  }
+  return `${(milliseconds / 1000).toFixed(1)} s`;
 }

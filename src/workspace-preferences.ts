@@ -1,18 +1,21 @@
 import * as vscode from 'vscode';
 
 export type PseudoraMode = 'tag' | 'surrogate';
+export type ChatResponseMode = 'protected' | 'restored';
 
 export interface WorkspacePreferencesSnapshot {
   enabled: boolean;
   mcpEnabled: boolean;
   documentType: string;
   mode: PseudoraMode;
+  chatResponseMode: ChatResponseMode;
 }
 
 const ENABLED_KEY = 'piiProtect.enabled';
 const MCP_ENABLED_KEY = 'piiProtect.mcpEnabled';
 const DOCUMENT_TYPE_KEY = 'piiProtect.documentType';
 const MODE_KEY = 'piiProtect.mode';
+const CHAT_RESPONSE_MODE_KEY = 'piiProtect.chatResponseMode';
 
 export class PseudoraWorkspacePreferences implements vscode.Disposable {
   private readonly changed = new vscode.EventEmitter<void>();
@@ -27,6 +30,7 @@ export class PseudoraWorkspacePreferences implements vscode.Disposable {
       mcpEnabled: this.state.get<boolean>(MCP_ENABLED_KEY, true),
       documentType: this.state.get<string>(DOCUMENT_TYPE_KEY, 'generic'),
       mode: this.state.get<PseudoraMode>(MODE_KEY, 'tag'),
+      chatResponseMode: this.state.get<ChatResponseMode>(CHAT_RESPONSE_MODE_KEY, 'protected'),
     };
   }
 
@@ -54,6 +58,11 @@ export class PseudoraWorkspacePreferences implements vscode.Disposable {
 
   async setMode(mode: PseudoraMode): Promise<void> {
     await this.state.update(MODE_KEY, mode);
+    this.changed.fire();
+  }
+
+  async setChatResponseMode(mode: ChatResponseMode): Promise<void> {
+    await this.state.update(CHAT_RESPONSE_MODE_KEY, mode);
     this.changed.fire();
   }
 

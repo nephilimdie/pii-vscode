@@ -204,6 +204,7 @@ export class PiiDetector {
       mcpEnabled: true,
       documentType: 'generic',
       mode: 'tag',
+      chatResponseMode: 'protected',
     };
   }
 

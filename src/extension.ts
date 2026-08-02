@@ -66,6 +66,10 @@ export function activate(context: vscode.ExtensionContext): void {
     await statusMenu.selectMode();
   });
 
+  const selectChatResponseMode = vscode.commands.registerCommand('piiProtect.selectChatResponseMode', async () => {
+    await statusMenu.selectChatResponseMode();
+  });
+
   const toggleEnabled = vscode.commands.registerCommand('piiProtect.toggleEnabled', async () => {
     await statusMenu.toggleEnabled();
   });
@@ -139,6 +143,7 @@ export function activate(context: vscode.ExtensionContext): void {
     openMenu,
     selectDocumentType,
     selectMode,
+    selectChatResponseMode,
     toggleEnabled,
     toggleMcp,
     openSecureChat,
