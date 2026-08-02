@@ -1,7 +1,13 @@
 import { createHash, randomBytes } from 'node:crypto';
 import * as vscode from 'vscode';
 import { getConfig } from './config';
-import { PseudoraOAuthApi, PseudoraProfile, PseudoraTeam, TokenResponse } from './oauth-api';
+import {
+  PseudoraDocumentType,
+  PseudoraOAuthApi,
+  PseudoraProfile,
+  PseudoraTeam,
+  TokenResponse,
+} from './oauth-api';
 
 const SESSION_SECRET = 'piiProtect.oauthSession';
 const TEAM_STATE = 'piiProtect.selectedTeamCode';
@@ -81,6 +87,19 @@ export class PseudoraOAuthClient implements vscode.UriHandler, vscode.Disposable
     const profile = await this.api.profile(session.accessToken);
     await this.saveSession({ ...session, profile });
     return this.pickTeam(profile.teams);
+  }
+
+  async documentTypes(): Promise<PseudoraDocumentType[]> {
+    const session = await this.ensureSession(true);
+    if (!session) {
+      return [];
+    }
+    const team = await this.ensureTeam(session.profile.teams, true);
+    if (!team) {
+      return [];
+    }
+
+    return this.api.documentTypes(session.accessToken, team.tenant_code);
   }
 
   async requestHeaders(interactive = true): Promise<Record<string, string> | undefined> {

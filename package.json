@@ -3,7 +3,7 @@
   "displayName": "Pseudora",
   "publisher": "pseudora",
   "description": "Detect and anonymize personal data and connect Pseudora MCP to VS Code",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "license": "SEE LICENSE IN LICENSE",
   "repository": {
     "type": "git",
@@ -28,27 +28,27 @@
     "commands": [
       {
         "command": "piiProtect.detectInFile",
-        "title": "PII Protect: Detect PII in File"
+        "title": "Pseudora: Detect PII in File"
       },
       {
         "command": "piiProtect.anonymizeSelection",
-        "title": "PII Protect: Anonymize Selection"
+        "title": "Pseudora: Anonymize Selection"
       },
       {
         "command": "piiProtect.anonymizeFile",
-        "title": "PII Protect: Anonymize Entire File"
+        "title": "Pseudora: Anonymize Entire File"
       },
       {
         "command": "piiProtect.clearHighlights",
-        "title": "PII Protect: Clear Highlights"
+        "title": "Pseudora: Clear Highlights"
       },
       {
         "command": "piiProtect.setApiKey",
-        "title": "PII Protect: Set API Key"
+        "title": "Pseudora: Set API Key"
       },
       {
         "command": "piiProtect.connect",
-        "title": "Pseudora: Connect Account"
+        "title": "Pseudora: Sign In"
       },
       {
         "command": "piiProtect.selectTeam",
@@ -57,6 +57,22 @@
       {
         "command": "piiProtect.disconnect",
         "title": "Pseudora: Disconnect Account"
+      },
+      {
+        "command": "piiProtect.openMenu",
+        "title": "Pseudora: Open Workspace Controls"
+      },
+      {
+        "command": "piiProtect.selectDocumentType",
+        "title": "Pseudora: Select Document Type"
+      },
+      {
+        "command": "piiProtect.selectMode",
+        "title": "Pseudora: Select Anonymization Mode"
+      },
+      {
+        "command": "piiProtect.toggleEnabled",
+        "title": "Pseudora: Pause or Resume Workspace"
       }
     ],
     "mcpServerDefinitionProviders": [
@@ -65,8 +81,21 @@
         "label": "Pseudora MCP"
       }
     ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "piiProtect.anonymizeSelection",
+          "when": "editorHasSelection",
+          "group": "pseudora@1"
+        },
+        {
+          "command": "piiProtect.detectInFile",
+          "group": "pseudora@2"
+        }
+      ]
+    },
     "configuration": {
-      "title": "PII Protect",
+      "title": "Pseudora",
       "properties": {
         "piiProtect.engineUrl": {
           "type": "string",
@@ -81,8 +110,8 @@
         "piiProtect.apiKey": {
           "type": "string",
           "default": "",
-          "markdownDeprecationMessage": "**Deprecated**: settings are stored in plaintext and travel through Settings Sync. Run `PII Protect: Set API Key` instead — the key goes into the OS keychain. Any value left here is migrated automatically on the next activation.",
-          "description": "Deprecated. Use the 'PII Protect: Set API Key' command."
+          "markdownDeprecationMessage": "**Deprecated**: settings are stored in plaintext and travel through Settings Sync. Run `Pseudora: Set API Key` instead — the key goes into the OS keychain. Any value left here is migrated automatically on the next activation.",
+          "description": "Deprecated. Use the 'Pseudora: Set API Key' command."
         },
         "piiProtect.autoDetect": {
           "type": "boolean",
@@ -99,7 +128,8 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./",
+    "clean": "node -e \"require('fs').rmSync('out', { recursive: true, force: true })\"",
+    "compile": "npm run clean && tsc -p ./",
     "watch": "tsc -watch -p ./",
     "test": "vitest run",
     "test:watch": "vitest"

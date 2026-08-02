@@ -1,8 +1,9 @@
 import * as vscode from 'vscode';
 import { PiiDetector, PiiMatch } from './detector';
 import { PiiHighlighter } from './highlighter';
-import { PiiStatusBar } from './statusbar';
+import { PseudoraOperationStatus } from './status-menu';
 import { getConfig, validateConfig } from './config';
+import { PseudoraWorkspacePreferences } from './workspace-preferences';
 
 // Per-document match cache so other commands (clear, etc.) can reference last results.
 const lastMatches = new Map<string, PiiMatch[]>();
@@ -11,8 +12,12 @@ async function runDetection(
   editor: vscode.TextEditor,
   detector: PiiDetector,
   highlighter: PiiHighlighter,
-  statusBar: PiiStatusBar
+  statusBar: PseudoraOperationStatus,
+  preferences: PseudoraWorkspacePreferences,
 ): Promise<PiiMatch[]> {
+  if (!ensureEnabled(preferences)) {
+    return [];
+  }
   const config = getConfig();
   const validationError = validateConfig(config);
   if (validationError) {
@@ -61,7 +66,8 @@ export function registerCommands(
   context: vscode.ExtensionContext,
   detector: PiiDetector,
   highlighter: PiiHighlighter,
-  statusBar: PiiStatusBar
+  statusBar: PseudoraOperationStatus,
+  preferences: PseudoraWorkspacePreferences,
 ): void {
   // ── Detect in file ──────────────────────────────────────────────────────────
   context.subscriptions.push(
@@ -71,13 +77,16 @@ export function registerCommands(
         vscode.window.showWarningMessage('No active editor.');
         return;
       }
-      await runDetection(editor, detector, highlighter, statusBar);
+      await runDetection(editor, detector, highlighter, statusBar, preferences);
     })
   );
 
   // ── Anonymize selection ─────────────────────────────────────────────────────
   context.subscriptions.push(
     vscode.commands.registerCommand('piiProtect.anonymizeSelection', async () => {
+      if (!ensureEnabled(preferences)) {
+        return;
+      }
       const editor = vscode.window.activeTextEditor;
       if (!editor) {
         vscode.window.showWarningMessage('No active editor.');
@@ -123,6 +132,9 @@ export function registerCommands(
   // ── Anonymize entire file ───────────────────────────────────────────────────
   context.subscriptions.push(
     vscode.commands.registerCommand('piiProtect.anonymizeFile', async () => {
+      if (!ensureEnabled(preferences)) {
+        return;
+      }
       const editor = vscode.window.activeTextEditor;
       if (!editor) {
         vscode.window.showWarningMessage('No active editor.');
@@ -186,4 +198,15 @@ export function registerCommands(
       statusBar.setIdle();
     })
   );
+}
+
+function ensureEnabled(preferences: PseudoraWorkspacePreferences): boolean {
+  if (preferences.snapshot().enabled) {
+    return true;
+  }
+
+  void vscode.window.showInformationMessage(
+    'Pseudora is paused for this workspace. Use the status-bar menu to resume it.',
+  );
+  return false;
 }

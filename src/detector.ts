@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { getApiKey } from './config';
 import { PseudoraSessionProvider } from './oauth';
+import { PseudoraWorkspacePreferences, WorkspacePreferencesSnapshot } from './workspace-preferences';
 
 export interface PiiMatch {
   type: string;
@@ -37,6 +38,7 @@ export class PiiDetector {
   constructor(
     private readonly secrets?: vscode.SecretStorage,
     private readonly oauth?: PseudoraSessionProvider,
+    private readonly preferences?: PseudoraWorkspacePreferences,
   ) {}
 
   private async getConfig(): Promise<{ engineUrl: string; apiKey: string }> {
@@ -87,13 +89,14 @@ export class PiiDetector {
 
   async detect(text: string): Promise<PiiMatch[]> {
     const { engineUrl, apiKey } = await this.getConfig();
+    const prefs = this.currentPreferences();
 
     let response: Response;
     try {
       response = await fetch(`${engineUrl}/v1/detect`, {
         method: 'POST',
         headers: await this.buildHeaders(apiKey),
-        body: JSON.stringify({ text }),
+        body: JSON.stringify(this.protectionPayload(text, prefs, false)),
       });
     } catch (err) {
       throw new Error(`Cannot reach PII engine at ${engineUrl}: ${String(err)}`);
@@ -122,17 +125,14 @@ export class PiiDetector {
 
   async anonymize(text: string): Promise<string> {
     const { engineUrl, apiKey } = await this.getConfig();
+    const prefs = this.currentPreferences();
 
     let response: Response;
     try {
       response = await fetch(`${engineUrl}/v1/anonymize`, {
         method: 'POST',
         headers: await this.buildHeaders(apiKey),
-        body: JSON.stringify({
-          text,
-          context_id:   `vscode_${Date.now()}`,
-          context_type: 'generic',
-        }),
+        body: JSON.stringify(this.protectionPayload(text, prefs, true)),
       });
     } catch (err) {
       throw new Error(`Cannot reach PII engine at ${engineUrl}: ${String(err)}`);
@@ -145,5 +145,33 @@ export class PiiDetector {
 
     const data = (await response.json()) as EngineAnonymizeResponse;
     return data.anonymized_text;
+  }
+
+  private currentPreferences(): WorkspacePreferencesSnapshot {
+    return this.preferences?.snapshot() ?? {
+      enabled: true,
+      documentType: 'generic',
+      mode: 'tag',
+    };
+  }
+
+  private protectionPayload(
+    text: string,
+    preferences: WorkspacePreferencesSnapshot,
+    includeContextId: boolean,
+  ): Record<string, string> {
+    const payload: Record<string, string> = { text };
+    if (includeContextId) {
+      payload.context_id = `vscode_${Date.now()}`;
+      payload.mode = preferences.mode;
+    }
+
+    if (preferences.documentType.startsWith('domain:')) {
+      payload.domain = preferences.documentType.slice('domain:'.length);
+    } else {
+      payload.context_type = preferences.documentType;
+    }
+
+    return payload;
   }
 }

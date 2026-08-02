@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { PiiDetector } from '../detector';
 import { validateConfig } from '../config';
+import { PseudoraWorkspacePreferences } from '../workspace-preferences';
 
 // vscode is aliased to src/__mocks__/vscode.ts via vitest.config.ts
 
@@ -134,6 +135,23 @@ describe('PiiDetector.anonymize()', () => {
     expect(body.text).toBe('sensitive content');
     expect(body.context_type).toBe('generic');
     expect(body.context_id).toMatch(/^vscode_\d+$/);
+  });
+
+  it('uses the workspace document type and anonymization mode', async () => {
+    const fetchSpy = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ anonymized_text: '[X]' }), text: async () => '{}' });
+    vi.stubGlobal('fetch', fetchSpy);
+    const preferences = {
+      snapshot: () => ({ enabled: true, documentType: 'fine_appeal', mode: 'surrogate' }),
+    } as PseudoraWorkspacePreferences;
+    const configuredDetector = new PiiDetector(undefined, undefined, preferences);
+
+    await configuredDetector.anonymize('sensitive content');
+
+    const [, options] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    expect(JSON.parse(options.body as string)).toMatchObject({
+      context_type: 'fine_appeal',
+      mode: 'surrogate',
+    });
   });
 });
 

@@ -13,6 +13,14 @@ export interface PseudoraProfile {
   teams: PseudoraTeam[];
 }
 
+export interface PseudoraDocumentType {
+  code: string;
+  name?: string;
+  display_name?: string;
+  default_mode: 'tag' | 'surrogate';
+  description?: string;
+}
+
 export interface TokenResponse {
   access_token: string;
   refresh_token?: string;
@@ -26,6 +34,9 @@ export class PseudoraOAuthApi {
     });
     const body = await response.json() as { client_id?: string; error?: string };
     if (!response.ok || !body.client_id) {
+      if (body.error === 'not_configured') {
+        throw new Error('Pseudora sign-in is temporarily unavailable. Please contact support.');
+      }
       throw new Error(body.error || `OAuth client discovery failed (${response.status}).`);
     }
     return body.client_id;
@@ -68,6 +79,30 @@ export class PseudoraOAuthApi {
       email: body.email || '',
       teams: Array.isArray(body.teams) ? body.teams : [],
     };
+  }
+
+  async documentTypes(accessToken: string, teamCode: string): Promise<PseudoraDocumentType[]> {
+    const response = await fetch(`${this.baseUrl()}/v1/admin/context-types`, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'X-Team-ID': teamCode,
+        'X-Pii-Client': 'vscode',
+        Accept: 'application/json',
+      },
+    });
+    const body = await response.json() as PseudoraDocumentType[] | { data?: PseudoraDocumentType[]; error?: string };
+    if (!response.ok) {
+      const error = Array.isArray(body) ? undefined : body.error;
+      throw new Error(error || `Could not load document types (${response.status}).`);
+    }
+
+    const items = Array.isArray(body) ? body : body.data || [];
+    return items
+      .filter(item => Boolean(item.code))
+      .map(item => ({
+        ...item,
+        default_mode: item.default_mode === 'surrogate' ? 'surrogate' : 'tag',
+      }));
   }
 
   private async tokens(payload: Record<string, string>): Promise<TokenResponse> {

@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.3.0] - 2026-08-02
+
+### Added
+- Unified workspace menu for account, team, document type, and anonymization mode
+- ACL-filtered document type picker backed by Pseudora Cloud
+- Workspace pause that disables editor operations, automatic scans, and MCP
+- Editor context-menu actions for detection and selection anonymization
+
+### Changed
+- Replaced the separate PII and team status items with one Pseudora control
+- Applied workspace document type and mode to direct API calls and MCP tools
+
+## [0.2.1] - 2026-08-02
+
+### Changed
+- Made the unauthenticated status-bar action explicit with `Pseudora: Sign in`
+- Clarified how to enable and verify Pseudora tools in VS Code Agent mode
+- Improved the error shown when Cloud OAuth provisioning is unavailable
+
 ## [0.2.0] - 2026-08-01
 
 ### Added

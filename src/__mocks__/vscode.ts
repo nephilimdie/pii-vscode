@@ -44,19 +44,29 @@ export class FakeSecretStorage {
   }
 }
 
+export const __statusBarItems: Array<{ text: string; tooltip: string; command: string }> = [];
+
 export const window = {
   activeTextEditor: null as null,
   showErrorMessage: (_msg: string) => Promise.resolve(undefined),
   showInformationMessage: (_msg: string) => Promise.resolve(undefined),
+  showWarningMessage: (_msg: string) => Promise.resolve(undefined),
   showQuickPick: async () => undefined,
-  createStatusBarItem: () => ({
-    text: '', tooltip: '', command: '',
-    show: () => {}, hide: () => {}, dispose: () => {},
-  }),
+  createStatusBarItem: () => {
+    const item = {
+      text: '', tooltip: '', command: '',
+      show: () => {}, hide: () => {}, dispose: () => {},
+    };
+    __statusBarItems.push(item);
+    return item;
+  },
   createTextEditorDecorationType: () => ({ dispose: () => {} }),
 };
 
 export const StatusBarAlignment = { Left: 1, Right: 2 } as const;
+export class ThemeColor {
+  constructor(public readonly id: string) {}
+}
 export const DecorationRangeBehavior = { ClosedClosed: 0 } as const;
 export const OverviewRulerLane = { Center: 4 } as const;
 export const commands = { executeCommand: async () => undefined };

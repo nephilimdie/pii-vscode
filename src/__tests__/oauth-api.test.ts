@@ -57,4 +57,36 @@ describe('Pseudora OAuth API', () => {
       'X-Pii-Client': 'vscode',
     });
   });
+
+  it('turns missing server provisioning into an actionable sign-in error', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+      json: async () => ({ error: 'not_configured' }),
+    }));
+
+    await expect(new PseudoraOAuthApi().clientId()).rejects.toThrow(
+      'Pseudora sign-in is temporarily unavailable. Please contact support.',
+    );
+  });
+
+  it('loads ACL-filtered document types for the selected team and VS Code client', async () => {
+    const fetchSpy = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ([
+        { code: 'fine_appeal', display_name: 'Fine appeal', default_mode: 'surrogate' },
+      ]),
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+
+    const types = await new PseudoraOAuthApi().documentTypes('oauth-token', 'team-blue');
+
+    expect(types[0]).toMatchObject({ code: 'fine_appeal', default_mode: 'surrogate' });
+    expect(fetchSpy.mock.calls[0][1].headers).toMatchObject({
+      Authorization: 'Bearer oauth-token',
+      'X-Team-ID': 'team-blue',
+      'X-Pii-Client': 'vscode',
+    });
+  });
 });

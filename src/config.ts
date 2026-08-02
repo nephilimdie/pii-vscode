@@ -78,7 +78,7 @@ export async function migrateApiKeyOutOfSettings(secrets: vscode.SecretStorage):
   }
 
   void vscode.window.showInformationMessage(
-    'PII Protect: your API key was moved out of settings.json into the OS keychain. ' +
+    'Pseudora: your API key was moved out of settings.json into the OS keychain. ' +
     'Settings Sync no longer carries it.',
   );
 }
