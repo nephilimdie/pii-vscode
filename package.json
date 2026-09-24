@@ -159,7 +159,7 @@
     "@types/node": "^20",
     "@types/vscode": "^1.80.0",
     "typescript": "^5.0",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.11"
   },
   "icon": "images/icon.png"
 }
