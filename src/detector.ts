@@ -27,6 +27,7 @@ interface EngineDetectResponse {
 }
 
 interface EngineAnonymizeResponse {
+  safe?: boolean;
   anonymized_text?: string;
   text?: string;
 }
@@ -161,8 +162,8 @@ export class PiiDetector {
     }
 
     const data = (await response.json()) as EngineAnonymizeResponse;
-    const protectedText = data.anonymized_text ?? data.text;
-    if (typeof protectedText !== 'string') {
+    const protectedText = data?.anonymized_text ?? data?.text;
+    if (data?.safe !== true || typeof protectedText !== 'string') {
       throw new Error('PII engine returned an invalid anonymization response.');
     }
 

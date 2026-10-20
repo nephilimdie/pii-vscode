@@ -106,8 +106,18 @@ describe('PiiDetector.anonymize()', () => {
     vi.unstubAllGlobals();
   });
 
+  it.each([
+    { safe: false, anonymized_text: 'private' },
+    { anonymized_text: 'private' },
+    { safe: 'true', anonymized_text: 'private' },
+    { safe: true, anonymized_text: 42 },
+  ])('blocks unconfirmed protection responses', async (response) => {
+    mockFetch(response);
+    await expect(detector.anonymize('private')).rejects.toThrow('invalid anonymization response');
+  });
+
   it('returns anonymized text from engine response', async () => {
-    mockFetch({ anonymized_text: '[PERSON_1] — email [EMAIL_1]' });
+    mockFetch({ safe: true, anonymized_text: '[PERSON_1] — email [EMAIL_1]' });
 
     const result = await detector.anonymize('Mario Rossi — email mario@example.com');
 
@@ -125,7 +135,7 @@ describe('PiiDetector.anonymize()', () => {
   });
 
   it('posts the full text as JSON body with context_id and context_type', async () => {
-    const fetchSpy = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ anonymized_text: '[X]' }), text: async () => '{}' });
+    const fetchSpy = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ safe: true, anonymized_text: '[X]' }), text: async () => '{}' });
     vi.stubGlobal('fetch', fetchSpy);
 
     await detector.anonymize('sensitive content');
@@ -138,7 +148,7 @@ describe('PiiDetector.anonymize()', () => {
   });
 
   it('uses the workspace document type and anonymization mode', async () => {
-    const fetchSpy = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ anonymized_text: '[X]' }), text: async () => '{}' });
+    const fetchSpy = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ safe: true, anonymized_text: '[X]' }), text: async () => '{}' });
     vi.stubGlobal('fetch', fetchSpy);
     const preferences = {
       snapshot: () => ({ enabled: true, documentType: 'fine_appeal', mode: 'surrogate' }),
@@ -159,7 +169,7 @@ describe('PiiDetector.anonymize()', () => {
       .mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () => ({ text: 'Ciao [PERSON_1]' }),
+        json: async () => ({ safe: true, text: 'Ciao [PERSON_1]' }),
         text: async () => '{}',
       })
       .mockResolvedValueOnce({
