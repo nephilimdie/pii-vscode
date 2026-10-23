@@ -32,8 +32,7 @@ interface EngineAnonymizeResponse {
 }
 
 interface EngineDeanonymizeResponse {
-  deanonymized_text?: string;
-  text?: string;
+  restored_text?: string;
 }
 
 /** A hung engine call must fail (and withhold the text), not wait forever. */
@@ -197,7 +196,7 @@ export class PiiDetector {
     }
 
     const data = (await response.json()) as EngineDeanonymizeResponse;
-    const restoredText = data.deanonymized_text ?? data.text;
+    const restoredText = data?.restored_text;
     if (typeof restoredText !== 'string') {
       throw new Error('PII engine returned an invalid deanonymization response.');
     }

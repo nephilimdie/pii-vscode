@@ -190,7 +190,7 @@ describe('PiiDetector.anonymize()', () => {
       .mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () => ({ text: 'Ciao Mario Rossi' }),
+        json: async () => ({ restored_text: 'Ciao Mario Rossi' }),
         text: async () => '{}',
       });
     vi.stubGlobal('fetch', fetchSpy);
@@ -204,6 +204,17 @@ describe('PiiDetector.anonymize()', () => {
     expect(deanonymizeBody.context_id).toBe(protectedText.contextId);
     expect(fetchSpy.mock.calls[1][0]).toContain('/v1/deanonymize');
   });
+});
+
+describe('PiiDetector.deanonymize()', () => {
+  beforeEach(() => vi.unstubAllGlobals());
+
+  it.each([{}, { text: 'Mario' }, { deanonymized_text: 'Mario' }, { restored_text: 1 }])(
+    'rejects a response without restored_text', async (response) => {
+      mockFetch(response);
+      await expect(new PiiDetector().deanonymize('[PERSON_1]', 'ctx')).rejects.toThrow('invalid deanonymization response');
+    },
+  );
 });
 
 // ── validateConfig() ────────────────────────────────────────────────────────
