@@ -111,6 +111,7 @@ describe('PiiDetector.anonymize()', () => {
     { anonymized_text: 'private' },
     { safe: 'true', anonymized_text: 'private' },
     { safe: true, anonymized_text: 42 },
+    { safe: true, text: 'private' },
   ])('blocks unconfirmed protection responses', async (response) => {
     mockFetch(response);
     await expect(detector.anonymize('private')).rejects.toThrow('invalid anonymization response');
@@ -132,6 +133,20 @@ describe('PiiDetector.anonymize()', () => {
   it('throws on network error', async () => {
     mockFetchNetworkError('fetch failed');
     await expect(detector.anonymize('text')).rejects.toThrow('Cannot reach PII engine');
+  });
+
+  it('bounds every engine call with a timeout signal', async () => {
+    const fetchSpy = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ safe: true, anonymized_text: '[X]' }), text: async () => '{}' });
+    vi.stubGlobal('fetch', fetchSpy);
+
+    await detector.anonymize('sensitive content');
+
+    expect(fetchSpy.mock.calls[0][1].signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it('fails closed when the engine times out', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new DOMException('The operation was aborted due to timeout', 'TimeoutError')));
+    await expect(detector.anonymize('private')).rejects.toThrow('Cannot reach PII engine');
   });
 
   it('posts the full text as JSON body with context_id and context_type', async () => {
@@ -169,7 +184,7 @@ describe('PiiDetector.anonymize()', () => {
       .mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () => ({ safe: true, text: 'Ciao [PERSON_1]' }),
+        json: async () => ({ safe: true, anonymized_text: 'Ciao [PERSON_1]' }),
         text: async () => '{}',
       })
       .mockResolvedValueOnce({

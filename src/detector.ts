@@ -29,13 +29,15 @@ interface EngineDetectResponse {
 interface EngineAnonymizeResponse {
   safe?: boolean;
   anonymized_text?: string;
-  text?: string;
 }
 
 interface EngineDeanonymizeResponse {
   deanonymized_text?: string;
   text?: string;
 }
+
+/** A hung engine call must fail (and withhold the text), not wait forever. */
+const REQUEST_TIMEOUT_MS = 60_000;
 
 export interface ProtectedText {
   text: string;
@@ -109,6 +111,7 @@ export class PiiDetector {
       response = await fetch(`${engineUrl}/v1/detect`, {
         method: 'POST',
         headers: await this.buildHeaders(apiKey),
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
         body: JSON.stringify(this.protectionPayload(text, prefs)),
       });
     } catch (err) {
@@ -150,6 +153,7 @@ export class PiiDetector {
       response = await fetch(`${engineUrl}/v1/anonymize`, {
         method: 'POST',
         headers: await this.buildHeaders(apiKey),
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
         body: JSON.stringify(this.protectionPayload(text, prefs, contextId)),
       });
     } catch (err) {
@@ -162,7 +166,8 @@ export class PiiDetector {
     }
 
     const data = (await response.json()) as EngineAnonymizeResponse;
-    const protectedText = data?.anonymized_text ?? data?.text;
+    // Only the spec field counts: a `text` echo must never be mistaken for protected output.
+    const protectedText = data?.anonymized_text;
     if (data?.safe !== true || typeof protectedText !== 'string') {
       throw new Error('PII engine returned an invalid anonymization response.');
     }
@@ -179,6 +184,7 @@ export class PiiDetector {
       response = await fetch(`${engineUrl}/v1/deanonymize`, {
         method: 'POST',
         headers: await this.buildHeaders(apiKey),
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
         body: JSON.stringify(this.protectionPayload(text, prefs, contextId)),
       });
     } catch (err) {
