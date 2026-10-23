@@ -217,6 +217,27 @@ describe('PiiDetector.deanonymize()', () => {
   );
 });
 
+describe('PiiDetector.deanonymize() mapping context', () => {
+  beforeEach(() => vi.unstubAllGlobals());
+
+  it.each([
+    ['domain:legal', 'legal'],
+    ['fine_appeal', 'fine_appeal'],
+  ])('restores %s mappings under context_type %s', async (documentType, contextType) => {
+    const fetchSpy = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ restored_text: 'Mario' }), text: async () => '{}' });
+    vi.stubGlobal('fetch', fetchSpy);
+    const preferences = {
+      snapshot: () => ({ enabled: true, documentType, mode: 'tag' }),
+    } as PseudoraWorkspacePreferences;
+
+    await new PiiDetector(undefined, undefined, preferences).deanonymize('[PERSON_1]', 'ctx');
+
+    expect(JSON.parse(fetchSpy.mock.calls[0][1].body as string)).toEqual({
+      text: '[PERSON_1]', context_id: 'ctx', context_type: contextType,
+    });
+  });
+});
+
 // ── validateConfig() ────────────────────────────────────────────────────────
 
 describe('validateConfig()', () => {

@@ -184,7 +184,9 @@ export class PiiDetector {
         method: 'POST',
         headers: await this.buildHeaders(apiKey),
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-        body: JSON.stringify(this.protectionPayload(text, prefs, contextId)),
+        // The engine looks mappings up by the context they were stored under:
+        // `context_type`, or the domain slug when a domain policy was used.
+        body: JSON.stringify({ text, context_id: contextId, context_type: this.mappingContext(prefs) }),
       });
     } catch (err) {
       throw new Error(`Cannot reach PII engine at ${engineUrl}: ${String(err)}`);
@@ -212,6 +214,15 @@ export class PiiDetector {
       mode: 'tag',
       chatResponseMode: 'protected',
     };
+  }
+
+  /**
+   * Why: anonymize stores mappings under `context_type || domain`; restore must use the same key.
+   * What: returns the domain slug for `domain:<slug>` document types, else the document type.
+   * Test: deanonymize with documentType 'domain:legal' posts context_type 'legal'.
+   */
+  private mappingContext(preferences: WorkspacePreferencesSnapshot): string {
+    return preferences.documentType.replace(/^domain:/, '');
   }
 
   private protectionPayload(
