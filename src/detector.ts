@@ -111,6 +111,7 @@ export class PiiDetector {
         method: 'POST',
         headers: await this.buildHeaders(apiKey),
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        redirect: 'error',
         body: JSON.stringify(this.protectionPayload(text, prefs)),
       });
     } catch (err) {
@@ -153,6 +154,7 @@ export class PiiDetector {
         method: 'POST',
         headers: await this.buildHeaders(apiKey),
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        redirect: 'error',
         body: JSON.stringify(this.protectionPayload(text, prefs, contextId)),
       });
     } catch (err) {
@@ -184,6 +186,7 @@ export class PiiDetector {
         method: 'POST',
         headers: await this.buildHeaders(apiKey),
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        redirect: 'error',
         // The engine looks mappings up by the context they were stored under:
         // `context_type`, or the domain slug when a domain policy was used.
         body: JSON.stringify({ text, context_id: contextId, context_type: this.mappingContext(prefs) }),

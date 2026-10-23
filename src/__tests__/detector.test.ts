@@ -144,6 +144,15 @@ describe('PiiDetector.anonymize()', () => {
     expect(fetchSpy.mock.calls[0][1].signal).toBeInstanceOf(AbortSignal);
   });
 
+  it('refuses redirects so text and API key never reach another host', async () => {
+    const fetchSpy = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ safe: true, anonymized_text: '[X]' }), text: async () => '{}' });
+    vi.stubGlobal('fetch', fetchSpy);
+
+    await detector.anonymize('sensitive content');
+
+    expect(fetchSpy.mock.calls[0][1].redirect).toBe('error');
+  });
+
   it('fails closed when the engine times out', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new DOMException('The operation was aborted due to timeout', 'TimeoutError')));
     await expect(detector.anonymize('private')).rejects.toThrow('Cannot reach PII engine');
