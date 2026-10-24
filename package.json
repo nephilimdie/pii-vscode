@@ -153,13 +153,21 @@
     "compile": "npm run clean && tsc -p ./",
     "watch": "tsc -watch -p ./",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "spec:verify": "cd openapi && shasum -a 256 -c pseudora-cloud.yaml.sha256",
+    "generate": "openapi-typescript openapi/pseudora-cloud.yaml -o src/generated/pseudora-api.ts",
+    "generate:check": "npm run spec:verify && npm run generate && git diff --exit-code -- src/generated && test -z \"$(git status --porcelain -- src/generated)\"",
+    "typecheck": "tsc -p ./ --noEmit"
   },
   "devDependencies": {
     "@types/node": "^20",
     "@types/vscode": "^1.80.0",
+    "openapi-typescript": "7.13.0",
     "typescript": "^5.0",
     "vitest": "^4.1.11"
   },
-  "icon": "images/icon.png"
+  "icon": "images/icon.png",
+  "dependencies": {
+    "openapi-fetch": "0.17.0"
+  }
 }

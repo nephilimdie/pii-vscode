@@ -87,3 +87,23 @@ MCP tools are invoked by the language model during an agent request. They protec
 data produced or fetched inside an agent workflow, but they cannot intercept a
 raw prompt that was already submitted to a generic Copilot chat. Use
 `@pseudora` when the prompt itself contains personal data.
+
+## Regenerating the API client
+
+The low-level client is generated from the vendored Cloud contract
+`openapi/pseudora-cloud.yaml` (v1.1.0, pinned by `openapi/pseudora-cloud.yaml.sha256`).
+`src/generated/pseudora-api.ts` holds the openapi-typescript 7.13.0 types, and
+`openapi-fetch` 0.17.0 sends the requests. `src/detector.ts` is the hand-written wrapper
+that enforces fail-closed handling. It releases text only on HTTP 2xx with `safe === true`
+and a string `anonymized_text`, and refuses timeouts, redirects and malformed bodies.
+
+To pick up a new contract:
+
+1. Copy the new spec over `openapi/pseudora-cloud.yaml` and refresh the checksum with
+   `cd openapi && shasum -a 256 pseudora-cloud.yaml > pseudora-cloud.yaml.sha256`.
+2. Run `npm run generate` and commit both the spec and `src/generated/`.
+3. Run `npm run typecheck && npm test`. Type errors in `src/detector.ts` mean the contract
+   changed in a way the wrapper has to handle.
+
+Never edit `src/generated/` by hand. CI runs `npm run generate:check`, which fails when the
+checksum does not match or the generated file is stale.

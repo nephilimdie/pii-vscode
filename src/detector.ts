@@ -1,5 +1,7 @@
 import * as vscode from 'vscode';
 import { randomUUID } from 'node:crypto';
+import createClient, { type Client } from 'openapi-fetch';
+import type { components, paths } from './generated/pseudora-api';
 import { getApiKey } from './config';
 import { PseudoraSessionProvider } from './oauth';
 import { PseudoraWorkspacePreferences, WorkspacePreferencesSnapshot } from './workspace-preferences';
@@ -14,28 +16,13 @@ export interface PiiMatch {
   character: number;
 }
 
-interface EngineDetectResponse {
-  entities: Array<{
-    entity_type?: string;
-    type?: string;
-    text?: string;
-    start: number;
-    end: number;
-    score?: number;
-    confidence?: number;
-  }>;
-}
+type Schemas = components['schemas'];
+type CoreResult<T> = { data?: T; error?: unknown; response: Response };
+type CoreInit = { headers: Record<string, string>; signal: AbortSignal; redirect: 'error' };
 
-interface EngineAnonymizeResponse {
-  safe?: boolean;
-  anonymized_text?: string;
-  text?: string;
-}
-
-interface EngineDeanonymizeResponse {
-  deanonymized_text?: string;
-  text?: string;
-}
+/** A hung engine call must fail (and withhold the text), not wait forever. */
+const REQUEST_TIMEOUT_MS = 60_000;
+const INVALID_RESPONSE = 'PII engine returned an invalid response.';
 
 export interface ProtectedText {
   text: string;
@@ -52,6 +39,7 @@ export class PiiDetector {
     private readonly secrets?: vscode.SecretStorage,
     private readonly oauth?: PseudoraSessionProvider,
     private readonly preferences?: PseudoraWorkspacePreferences,
+    private readonly timeoutMs = REQUEST_TIMEOUT_MS,
   ) {}
 
   private async getConfig(): Promise<{ engineUrl: string; apiKey: string }> {
@@ -100,36 +88,65 @@ export class PiiDetector {
     return { line, character };
   }
 
-  async detect(text: string): Promise<PiiMatch[]> {
+  /**
+   * Why: one place enforces timeout, redirect refusal and the fail-closed response checks.
+   * What: runs a generated-core call against the configured engine; returns the 2xx JSON
+   * object body or throws ("Cannot reach", "returned <status>", or invalid response).
+   * Test: detector.test.ts mocks fetch for network error, timeout, non-2xx and malformed bodies.
+   */
+  private async request<T>(
+    send: (core: Client<paths>, init: CoreInit) => Promise<CoreResult<T>>,
+  ): Promise<Partial<T>> {
     const { engineUrl, apiKey } = await this.getConfig();
-    const prefs = this.currentPreferences();
+    // `fetch` is resolved per call so a replaced global (tests, proxies) is honoured.
+    const core = createClient<paths>({ baseUrl: engineUrl, fetch: request => fetch(request) });
+    const init: CoreInit = {
+      headers: await this.buildHeaders(apiKey),
+      signal: AbortSignal.timeout(this.timeoutMs),
+      redirect: 'error',
+    };
 
-    let response: Response;
+    let result: CoreResult<T>;
     try {
-      response = await fetch(`${engineUrl}/v1/detect`, {
-        method: 'POST',
-        headers: await this.buildHeaders(apiKey),
-        body: JSON.stringify(this.protectionPayload(text, prefs)),
-      });
+      // The core reads the body before resolving, so the timeout covers it too.
+      result = await send(core, init);
     } catch (err) {
+      if (err instanceof SyntaxError) {
+        throw new Error(INVALID_RESPONSE);
+      }
       throw new Error(`Cannot reach PII engine at ${engineUrl}: ${String(err)}`);
     }
 
+    const { data, error, response } = result;
     if (!response.ok) {
-      const body = await response.text();
+      const body = typeof error === 'string' ? error : JSON.stringify(error ?? '');
       throw new Error(`PII engine returned ${response.status}: ${body}`);
     }
+    if (!data || typeof data !== 'object' || Array.isArray(data)) {
+      throw new Error(INVALID_RESPONSE);
+    }
+    return data as Partial<T>;
+  }
 
-    const data = (await response.json()) as EngineDetectResponse;
+  async detect(text: string): Promise<PiiMatch[]> {
+    const policy = this.policyFields(this.currentPreferences());
+    const data = await this.request((core, init) => core.POST('/v1/detect', {
+      ...init,
+      // DetectRequest has no `domain`; the engine ignored it, so domain policies send none.
+      body: { text, context_type: 'context_type' in policy ? policy.context_type : undefined },
+    }));
+    if (!Array.isArray(data.entities)) {
+      throw new Error(INVALID_RESPONSE);
+    }
 
     return data.entities.map(entity => {
       const pos = this.offsetToPosition(text, entity.start);
       return {
-        type: entity.entity_type || entity.type || 'UNKNOWN',
-        text: entity.text || text.slice(entity.start, entity.end),
+        type: entity.type || 'UNKNOWN',
+        text: entity.value || text.slice(entity.start, entity.end),
         start: entity.start,
         end: entity.end,
-        score: entity.score ?? entity.confidence ?? 0,
+        score: entity.confidence ?? 0,
         line: pos.line,
         character: pos.character,
       };
@@ -141,29 +158,15 @@ export class PiiDetector {
   }
 
   async anonymizeWithContext(text: string): Promise<ProtectedText> {
-    const { engineUrl, apiKey } = await this.getConfig();
     const prefs = this.currentPreferences();
     const contextId = `vscode_${randomUUID()}`;
-
-    let response: Response;
-    try {
-      response = await fetch(`${engineUrl}/v1/anonymize`, {
-        method: 'POST',
-        headers: await this.buildHeaders(apiKey),
-        body: JSON.stringify(this.protectionPayload(text, prefs, contextId)),
-      });
-    } catch (err) {
-      throw new Error(`Cannot reach PII engine at ${engineUrl}: ${String(err)}`);
-    }
-
-    if (!response.ok) {
-      const body = await response.text();
-      throw new Error(`PII engine returned ${response.status}: ${body}`);
-    }
-
-    const data = (await response.json()) as EngineAnonymizeResponse;
-    const protectedText = data?.anonymized_text ?? data?.text;
-    if (data?.safe !== true || typeof protectedText !== 'string') {
+    const body: Schemas['AnonymizeRequest'] = {
+      text, context_id: contextId, mode: prefs.mode, ...this.policyFields(prefs),
+    };
+    const data = await this.request((core, init) => core.POST('/v1/anonymize', { ...init, body }));
+    // Only the spec field counts: a `text` echo must never be mistaken for protected output.
+    const protectedText = data.anonymized_text;
+    if (data.safe !== true || typeof protectedText !== 'string') {
       throw new Error('PII engine returned an invalid anonymization response.');
     }
 
@@ -171,27 +174,13 @@ export class PiiDetector {
   }
 
   async deanonymize(text: string, contextId: string): Promise<string> {
-    const { engineUrl, apiKey } = await this.getConfig();
-    const prefs = this.currentPreferences();
-
-    let response: Response;
-    try {
-      response = await fetch(`${engineUrl}/v1/deanonymize`, {
-        method: 'POST',
-        headers: await this.buildHeaders(apiKey),
-        body: JSON.stringify(this.protectionPayload(text, prefs, contextId)),
-      });
-    } catch (err) {
-      throw new Error(`Cannot reach PII engine at ${engineUrl}: ${String(err)}`);
-    }
-
-    if (!response.ok) {
-      const body = await response.text();
-      throw new Error(`PII engine returned ${response.status}: ${body}`);
-    }
-
-    const data = (await response.json()) as EngineDeanonymizeResponse;
-    const restoredText = data.deanonymized_text ?? data.text;
+    const data = await this.request((core, init) => core.POST('/v1/deanonymize', {
+      ...init,
+      // The engine looks mappings up by the context they were stored under:
+      // `context_type`, or the domain slug when a domain policy was used.
+      body: { text, context_id: contextId, context_type: this.mappingContext(this.currentPreferences()) },
+    }));
+    const restoredText = data.restored_text;
     if (typeof restoredText !== 'string') {
       throw new Error('PII engine returned an invalid deanonymization response.');
     }
@@ -209,23 +198,25 @@ export class PiiDetector {
     };
   }
 
-  private protectionPayload(
-    text: string,
+  /**
+   * Why: anonymize stores mappings under `context_type || domain`; restore must use the same key.
+   * What: returns the domain slug for `domain:<slug>` document types, else the document type.
+   * Test: deanonymize with documentType 'domain:legal' posts context_type 'legal'.
+   */
+  private mappingContext(preferences: WorkspacePreferencesSnapshot): string {
+    return preferences.documentType.replace(/^domain:/, '');
+  }
+
+  /**
+   * Why: the workspace document type is either a context type or `domain:<slug>`.
+   * What: maps it to the AnonymizeRequest selector, `{ domain }` or `{ context_type }`.
+   * Test: anonymize with documentType 'domain:legal' posts domain 'legal' and no context_type.
+   */
+  private policyFields(
     preferences: WorkspacePreferencesSnapshot,
-    contextId?: string,
-  ): Record<string, string> {
-    const payload: Record<string, string> = { text };
-    if (contextId) {
-      payload.context_id = contextId;
-      payload.mode = preferences.mode;
-    }
-
-    if (preferences.documentType.startsWith('domain:')) {
-      payload.domain = preferences.documentType.slice('domain:'.length);
-    } else {
-      payload.context_type = preferences.documentType;
-    }
-
-    return payload;
+  ): { domain: string } | { context_type: string } {
+    return preferences.documentType.startsWith('domain:')
+      ? { domain: this.mappingContext(preferences) }
+      : { context_type: preferences.documentType };
   }
 }

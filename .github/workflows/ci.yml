@@ -22,3 +22,16 @@ jobs:
       - run: npm run compile
       - run: npm test -- --reporter=dot
       - run: npm pack --dry-run
+
+  generated-core:
+    name: generated core matches spec
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # Fails when the vendored spec's checksum changed or src/generated is stale.
+      - run: npm run generate:check
