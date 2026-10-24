@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.6.0] - 2026-10-24
+
+### Security
+- Anonymization now fails closed: only a confirmed `anonymized_text` from Pseudora is ever accepted, and the original text is never used as a fallback
+- Requests to Pseudora are no longer followed across redirects
+- Requests to Pseudora now time out after 60 seconds instead of waiting indefinitely
+- Restore responses without a valid `restored_text` are rejected
+- Updated a development dependency (vite) to clear known advisories
+
+### Fixed
+- "AI response: Restored" mode now works; restored text was previously read from the wrong field
+- Restoring with a domain policy now uses the matching context
+
+### Changed
+- Engine calls go through a client generated from the Pseudora OpenAPI contract
+
 ## [0.5.0] - 2026-08-02
 
 ### Added
